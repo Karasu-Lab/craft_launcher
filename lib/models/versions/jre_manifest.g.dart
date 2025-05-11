@@ -52,33 +52,40 @@ PlatformJavaRuntimes _$PlatformJavaRuntimesFromJson(
   Map<String, dynamic> json,
 ) => PlatformJavaRuntimes(
   javaRuntimeAlpha:
-      (json['java-runtime-alpha'] as List<dynamic>)
-          .map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (json['java-runtime-alpha'] as List<dynamic>?)
+          ?.map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
   javaRuntimeBeta:
-      (json['java-runtime-beta'] as List<dynamic>)
-          .map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (json['java-runtime-beta'] as List<dynamic>?)
+          ?.map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
   javaRuntimeDelta:
-      (json['java-runtime-delta'] as List<dynamic>)
-          .map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (json['java-runtime-delta'] as List<dynamic>?)
+          ?.map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
   javaRuntimeGamma:
-      (json['java-runtime-gamma'] as List<dynamic>)
-          .map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (json['java-runtime-gamma'] as List<dynamic>?)
+          ?.map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
   javaRuntimeGammaSnapshot:
-      (json['java-runtime-gamma-snapshot'] as List<dynamic>)
-          .map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (json['java-runtime-gamma-snapshot'] as List<dynamic>?)
+          ?.map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
   jreLegacy:
-      (json['jre-legacy'] as List<dynamic>)
-          .map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (json['jre-legacy'] as List<dynamic>?)
+          ?.map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
   minecraftJavaExe:
-      (json['minecraft-java-exe'] as List<dynamic>)
-          .map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (json['minecraft-java-exe'] as List<dynamic>?)
+          ?.map((e) => JavaRuntime.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$PlatformJavaRuntimesToJson(
@@ -110,7 +117,9 @@ JavaRuntime _$JavaRuntimeFromJson(Map<String, dynamic> json) => JavaRuntime(
   version:
       json['version'] == null
           ? null
-          : VersionInfo.fromJson(json['version'] as Map<String, dynamic>),
+          : JavaRuntimeVersionInfo.fromJson(
+            json['version'] as Map<String, dynamic>,
+          ),
 );
 
 Map<String, dynamic> _$JavaRuntimeToJson(JavaRuntime instance) =>
@@ -142,10 +151,13 @@ Map<String, dynamic> _$ManifestFileInfoToJson(ManifestFileInfo instance) =>
       'url': instance.url,
     };
 
-VersionInfo _$VersionInfoFromJson(Map<String, dynamic> json) => VersionInfo(
+JavaRuntimeVersionInfo _$JavaRuntimeVersionInfoFromJson(
+  Map<String, dynamic> json,
+) => JavaRuntimeVersionInfo(
   name: json['name'] as String,
   released: json['released'] as String,
 );
 
-Map<String, dynamic> _$VersionInfoToJson(VersionInfo instance) =>
-    <String, dynamic>{'name': instance.name, 'released': instance.released};
+Map<String, dynamic> _$JavaRuntimeVersionInfoToJson(
+  JavaRuntimeVersionInfo instance,
+) => <String, dynamic>{'name': instance.name, 'released': instance.released};

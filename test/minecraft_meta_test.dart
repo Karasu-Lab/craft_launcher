@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:craft_launcher/api/minecraft_meta.dart';
-import 'package:craft_launcher/models/versions/version_manifest_v2.dart';
-import 'package:craft_launcher/models/java_patch_notes.dart';
-import 'package:craft_launcher/models/news.dart';
-import 'package:craft_launcher/models/alertMessaging.dart';
+import 'package:craft_launcher_core/api/minecraft_meta.dart';
+import 'package:craft_launcher_core/models/versions/version_manifest_v2.dart';
+import 'package:craft_launcher_core/models/java_patch_notes.dart';
+import 'package:craft_launcher_core/models/news.dart';
+import 'package:craft_launcher_core/models/alert_messaging.dart';
 
 void main() {
   late MinecraftMeta minecraftMeta;

@@ -64,13 +64,13 @@ class PlatformJavaRuntimes {
   final List<JavaRuntime> minecraftJavaExe;
 
   PlatformJavaRuntimes({
-    required this.javaRuntimeAlpha,
-    required this.javaRuntimeBeta,
-    required this.javaRuntimeDelta,
-    required this.javaRuntimeGamma,
-    required this.javaRuntimeGammaSnapshot,
-    required this.jreLegacy,
-    required this.minecraftJavaExe,
+    this.javaRuntimeAlpha = const [],
+    this.javaRuntimeBeta = const [],
+    this.javaRuntimeDelta = const [],
+    this.javaRuntimeGamma = const [],
+    this.javaRuntimeGammaSnapshot = const [],
+    this.jreLegacy = const [],
+    this.minecraftJavaExe = const [],
   });
 
   factory PlatformJavaRuntimes.fromJson(Map<String, dynamic> json) =>
@@ -82,7 +82,7 @@ class PlatformJavaRuntimes {
 class JavaRuntime {
   final Availability? availability;
   final ManifestFileInfo? manifest;
-  final VersionInfo? version;
+  final JavaRuntimeVersionInfo? version;
 
   JavaRuntime({this.availability, this.manifest, this.version});
 
@@ -117,13 +117,13 @@ class ManifestFileInfo {
 }
 
 @JsonSerializable()
-class VersionInfo {
+class JavaRuntimeVersionInfo {
   final String name;
   final String released;
 
-  VersionInfo({required this.name, required this.released});
+  JavaRuntimeVersionInfo({required this.name, required this.released});
 
-  factory VersionInfo.fromJson(Map<String, dynamic> json) =>
-      _$VersionInfoFromJson(json);
-  Map<String, dynamic> toJson() => _$VersionInfoToJson(this);
+  factory JavaRuntimeVersionInfo.fromJson(Map<String, dynamic> json) =>
+      _$JavaRuntimeVersionInfoFromJson(json);
+  Map<String, dynamic> toJson() => _$JavaRuntimeVersionInfoToJson(this);
 }

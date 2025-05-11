@@ -154,7 +154,12 @@ Map<String, dynamic> _$JavaVersionToJson(JavaVersion instance) =>
 Library _$LibraryFromJson(Map<String, dynamic> json) => Library(
   name: json['name'] as String?,
   url: json['url'] as String?,
-  downloads: json['downloads'] as Map<String, dynamic>?,
+  downloads:
+      json['downloads'] == null
+          ? null
+          : LibraryDownloads.fromJson(
+            json['downloads'] as Map<String, dynamic>,
+          ),
   natives: (json['natives'] as Map<String, dynamic>?)?.map(
     (k, e) => MapEntry(k, e as String),
   ),
@@ -177,17 +182,74 @@ Map<String, dynamic> _$LibraryToJson(Library instance) => <String, dynamic>{
   'extract': instance.extract,
 };
 
+LibraryDownloads _$LibraryDownloadsFromJson(
+  Map<String, dynamic> json,
+) => LibraryDownloads(
+  artifact:
+      json['artifact'] == null
+          ? null
+          : DownloadArtifact.fromJson(json['artifact'] as Map<String, dynamic>),
+  classifiers: (json['classifiers'] as Map<String, dynamic>?)?.map(
+    (k, e) => MapEntry(k, DownloadArtifact.fromJson(e as Map<String, dynamic>)),
+  ),
+);
+
+Map<String, dynamic> _$LibraryDownloadsToJson(LibraryDownloads instance) =>
+    <String, dynamic>{
+      'artifact': instance.artifact,
+      'classifiers': instance.classifiers,
+    };
+
+DownloadArtifact _$DownloadArtifactFromJson(Map<String, dynamic> json) =>
+    DownloadArtifact(
+      path: json['path'] as String?,
+      sha1: json['sha1'] as String?,
+      size: (json['size'] as num?)?.toInt(),
+      url: json['url'] as String?,
+    );
+
+Map<String, dynamic> _$DownloadArtifactToJson(DownloadArtifact instance) =>
+    <String, dynamic>{
+      'path': instance.path,
+      'sha1': instance.sha1,
+      'size': instance.size,
+      'url': instance.url,
+    };
+
 Rule _$RuleFromJson(Map<String, dynamic> json) => Rule(
   action: json['action'] as String,
   os:
       json['os'] == null
           ? null
           : Os.fromJson(json['os'] as Map<String, dynamic>),
+  features:
+      json['features'] == null
+          ? null
+          : Features.fromJson(json['features'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$RuleToJson(Rule instance) => <String, dynamic>{
   'action': instance.action,
   'os': instance.os,
+  'features': instance.features,
+};
+
+Features _$FeaturesFromJson(Map<String, dynamic> json) => Features(
+  isDemoUser: json['is_demo_user'] as bool?,
+  hasCustomResolution: json['has_custom_resolution'] as bool?,
+  hasQuickPlaysSupport: json['has_quick_plays_support'] as bool?,
+  isQuickPlaySingleplayer: json['is_quick_play_singleplayer'] as bool?,
+  isQuickPlayMultiplayer: json['is_quick_play_multiplayer'] as bool?,
+  isQuickPlayRealms: json['is_quick_play_realms'] as bool?,
+);
+
+Map<String, dynamic> _$FeaturesToJson(Features instance) => <String, dynamic>{
+  'is_demo_user': instance.isDemoUser,
+  'has_custom_resolution': instance.hasCustomResolution,
+  'has_quick_plays_support': instance.hasQuickPlaysSupport,
+  'is_quick_play_singleplayer': instance.isQuickPlaySingleplayer,
+  'is_quick_play_multiplayer': instance.isQuickPlayMultiplayer,
+  'is_quick_play_realms': instance.isQuickPlayRealms,
 };
 
 Os _$OsFromJson(Map<String, dynamic> json) =>

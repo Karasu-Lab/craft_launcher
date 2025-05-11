@@ -135,7 +135,7 @@ class JavaVersion {
 class Library {
   final String? name;
   final String? url;
-  final Map<String, dynamic>? downloads;
+  final LibraryDownloads? downloads;
   final Map<String, String>? natives;
   final List<Rule>? rules;
   final Extract? extract;
@@ -155,14 +155,70 @@ class Library {
 }
 
 @JsonSerializable()
+class LibraryDownloads {
+  final DownloadArtifact? artifact;
+  final Map<String, DownloadArtifact>? classifiers;
+
+  LibraryDownloads({this.artifact, this.classifiers});
+
+  factory LibraryDownloads.fromJson(Map<String, dynamic> json) =>
+      _$LibraryDownloadsFromJson(json);
+  Map<String, dynamic> toJson() => _$LibraryDownloadsToJson(this);
+}
+
+@JsonSerializable()
+class DownloadArtifact {
+  final String? path;
+  final String? sha1;
+  final int? size;
+  final String? url;
+
+  DownloadArtifact({this.path, this.sha1, this.size, this.url});
+
+  factory DownloadArtifact.fromJson(Map<String, dynamic> json) =>
+      _$DownloadArtifactFromJson(json);
+  Map<String, dynamic> toJson() => _$DownloadArtifactToJson(this);
+}
+
+@JsonSerializable()
 class Rule {
   final String action;
   final Os? os;
+  final Features? features;
 
-  Rule({required this.action, this.os});
+  Rule({required this.action, this.os, this.features});
 
   factory Rule.fromJson(Map<String, dynamic> json) => _$RuleFromJson(json);
   Map<String, dynamic> toJson() => _$RuleToJson(this);
+}
+
+@JsonSerializable()
+class Features {
+  @JsonKey(name: 'is_demo_user')
+  final bool? isDemoUser;
+  @JsonKey(name: 'has_custom_resolution')
+  final bool? hasCustomResolution;
+  @JsonKey(name: 'has_quick_plays_support')
+  final bool? hasQuickPlaysSupport;
+  @JsonKey(name: 'is_quick_play_singleplayer')
+  final bool? isQuickPlaySingleplayer;
+  @JsonKey(name: 'is_quick_play_multiplayer')
+  final bool? isQuickPlayMultiplayer;
+  @JsonKey(name: 'is_quick_play_realms')
+  final bool? isQuickPlayRealms;
+
+  Features({
+    this.isDemoUser,
+    this.hasCustomResolution,
+    this.hasQuickPlaysSupport,
+    this.isQuickPlaySingleplayer,
+    this.isQuickPlayMultiplayer,
+    this.isQuickPlayRealms,
+  });
+
+  factory Features.fromJson(Map<String, dynamic> json) =>
+      _$FeaturesFromJson(json);
+  Map<String, dynamic> toJson() => _$FeaturesToJson(this);
 }
 
 @JsonSerializable()

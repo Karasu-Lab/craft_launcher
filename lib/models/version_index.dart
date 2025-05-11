@@ -19,7 +19,7 @@ class VersionMetadata {
   final String name;
   @JsonKey(name: 'download_size')
   final int downloadSize;
-  final VersionInfo info;
+  final VersionMetadata info;
   VersionMetadata({
     required this.name,
     required this.downloadSize,
@@ -33,15 +33,15 @@ class VersionMetadata {
 }
 
 @JsonSerializable()
-class VersionInfo {
+class VersionMetadataVersionInfo {
   final String name;
   final String sha1;
   final String url;
 
-  VersionInfo({required this.name, required this.sha1, required this.url});
+  VersionMetadataVersionInfo({required this.name, required this.sha1, required this.url});
 
-  factory VersionInfo.fromJson(Map<String, dynamic> json) =>
-      _$VersionInfoFromJson(json);
+  factory VersionMetadataVersionInfo.fromJson(Map<String, dynamic> json) =>
+      _$VersionMetadataVersionInfoFromJson(json);
 
-  Map<String, dynamic> toJson() => _$VersionInfoToJson(this);
+  Map<String, dynamic> toJson() => _$VersionMetadataVersionInfoToJson(this);
 }

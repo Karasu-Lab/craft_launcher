@@ -1,4 +1,4 @@
-name: craft_launcher
+name: craft_launcher_core
 description: "A new Flutter package project."
 version: 0.0.1
 homepage: https://www.karasu256.com
@@ -8,17 +8,23 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
+  envied: ^1.1.1
   flutter:
     sdk: flutter
   http: ^1.4.0
   json_annotation: ^4.9.0
   json_serializable: ^6.9.5
+  mcid_connect: ^0.0.3
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   build_runner: ^2.4.15
+  envied_generator: ^1.1.1
 
 flutter:
   uses-material-design: true

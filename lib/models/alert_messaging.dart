@@ -1,6 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
-part 'alertMessaging.g.dart';
+part 'alert_messaging.g.dart';
 
 @JsonSerializable()
 class AlertMessaging {

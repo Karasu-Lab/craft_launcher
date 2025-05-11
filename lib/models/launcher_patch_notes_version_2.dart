@@ -1,16 +1,13 @@
 import 'package:json_annotation/json_annotation.dart';
 
-part 'launcherPatchNotes_v2.g.dart';
+part 'launcher_patch_notes_version_2.g.dart';
 
 @JsonSerializable()
 class LauncherPatchNotesV2 {
   final int version;
-  final List<PatchNoteEntry> entries;
+  final List<LauncherPatchNotesV2PatchNoteEntry> entries;
 
-  LauncherPatchNotesV2({
-    required this.version,
-    required this.entries,
-  });
+  LauncherPatchNotesV2({required this.version, required this.entries});
 
   factory LauncherPatchNotesV2.fromJson(Map<String, dynamic> json) =>
       _$LauncherPatchNotesV2FromJson(json);
@@ -19,22 +16,24 @@ class LauncherPatchNotesV2 {
 }
 
 @JsonSerializable()
-class PatchNoteEntry {
+class LauncherPatchNotesV2PatchNoteEntry {
   final String id;
   final String? date;
   final String? body;
   @JsonKey(includeIfNull: false)
   final Map<String, dynamic>? versions;
 
-  PatchNoteEntry({
+  LauncherPatchNotesV2PatchNoteEntry({
     required this.id,
     this.date,
     this.body,
     this.versions,
   });
 
-  factory PatchNoteEntry.fromJson(Map<String, dynamic> json) =>
-      _$PatchNoteEntryFromJson(json);
+  factory LauncherPatchNotesV2PatchNoteEntry.fromJson(
+    Map<String, dynamic> json,
+  ) => _$LauncherPatchNotesV2PatchNoteEntryFromJson(json);
 
-  Map<String, dynamic> toJson() => _$PatchNoteEntryToJson(this);
+  Map<String, dynamic> toJson() =>
+      _$LauncherPatchNotesV2PatchNoteEntryToJson(this);
 }
