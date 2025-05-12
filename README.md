@@ -11,29 +11,179 @@ and the Flutter guide for
 [developing packages and plugins](https://flutter.dev/to/develop-packages).
 -->
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+# Craft Launcher Core
+
+A Dart package for launching Minecraft Java Edition. This library simplifies the process of managing launcher profiles, downloading game assets, and starting Minecraft instances.
 
 ## Features
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+- Minecraft version management
+- Game assets and libraries downloading
+- Java runtime detection and management 
+- Profile configuration and customization
+- Launch with Microsoft authentication support
+- Extensible launcher adapter system
 
 ## Getting started
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+Add this package to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  craft_launcher_core: ^0.0.1
+```
+
+Then run:
+
+```bash
+flutter pub get
+```
 
 ## Usage
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
+### Basic Launcher Setup
 
 ```dart
-const like = 'sample';
+import 'package:craft_launcher_core/vanilla_launcher.dart';
+import 'package:craft_launcher_core/models/launcher_profiles.dart';
+
+// Create a profile
+final myProfile = Profile(
+  icon: 'minecraft',
+  name: 'MyProfile',
+  type: 'latest-release',
+  created: DateTime.now().toIso8601String(),
+  lastUsed: DateTime.now().toIso8601String(),
+  lastVersionId: '1.21.3',
+);
+
+// Initialize launcher
+final launcher = VanillaLauncher(
+  gameDir: '/path/to/minecraft',
+  javaDir: '/path/to/java',
+  profiles: LauncherProfiles(
+    profiles: {'my_profile': myProfile},
+    settings: Settings(
+      enableSnapshots: false,
+      keepLauncherOpen: true,
+      showGameLog: true,
+    ),
+    version: 3,
+  ),
+  activeProfile: myProfile,
+  onOperationProgress: (operation, completed, total, percentage) {
+    print('$operation: $percentage%');
+  },
+);
+
+// Launch the game
+await launcher.launch(
+  onStdout: (data) => print('Minecraft: $data'),
+  onStderr: (data) => print('Error: $data'),
+  onExit: (code) => print('Game exited with code: $code'),
+);
+```
+
+### Using with Microsoft Authentication
+
+```dart
+import 'package:craft_launcher_core/vanilla_launcher.dart';
+import 'package:craft_launcher_core/models/models.dart';
+import 'package:mcid_connect/mcid_connect.dart';
+
+// Authenticate with Microsoft (see mcid_connect package)
+final authService = AuthService(
+  clientId: 'your-azure-app-client-id',
+  redirectUri: 'http://localhost:3000',
+  scopes: ['XboxLive.signin', 'offline_access'],
+  onGetDeviceCode: (deviceCodeResponse) {
+    print('Please visit: ${deviceCodeResponse.verificationUri}');
+    print('And enter this code: ${deviceCodeResponse.userCode}');
+  },
+);
+
+await authService.startAuthenticationFlow();
+
+// Initialize the launcher with auth
+final launcher = VanillaLauncher(
+  // Game directory settings
+  gameDir: '/path/to/minecraft',
+  javaDir: '/path/to/java',
+  profiles: myProfiles,
+  activeProfile: myProfile,
+  
+  // Authentication data from Microsoft login
+  minecraftAuth: MinecraftAuth(
+    clientId: 'your-azure-app-client-id',
+    authXuid: authService.xstsUhs,
+    userName: authService.minecraftProfile.name,
+    uuid: authService.minecraftProfile.id,
+    accessToken: authService.minecraftToken,
+    userType: 'msa',
+  ),
+);
+
+// Launch with authentication
+await launcher.launch();
+```
+
+### Creating a Custom Launcher Adapter
+
+You can extend the launcher functionality by implementing a custom adapter:
+
+```dart
+import 'package:craft_launcher_core/launcher_adapter.dart';
+
+class ModdedLauncherAdapter implements LauncherAdapter {
+  final LauncherAdapter _vanillaAdapter;
+  
+  ModdedLauncherAdapter(this._vanillaAdapter);
+  
+  @override
+  Future<void> afterBuildClasspath(
+    VersionInfo versionInfo, 
+    String versionId, 
+    List<String> classpath
+  ) async {
+    // Add mod loaders to classpath
+    classpath.add('/path/to/forge.jar');
+    
+    // Continue with vanilla behavior
+    await _vanillaAdapter.afterBuildClasspath(versionInfo, versionId, classpath);
+  }
+  
+  // Implement other interface methods or delegate to vanilla adapter
+  @override
+  Future<void> beforeStartProcess(
+    String javaExe,
+    List<String> javaArgs,
+    String workingDirectory,
+    Map<String, String> environment,
+    String versionId,
+    MinecraftAuth? auth,
+  ) async {
+    // Add custom JVM arguments
+    javaArgs.add('-Dfml.ignoreInvalidMinecraftCertificates=true');
+    
+    await _vanillaAdapter.beforeStartProcess(
+      javaExe, javaArgs, workingDirectory, environment, versionId, auth
+    );
+  }
+}
 ```
 
 ## Additional information
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+### Requirements
+
+- Dart SDK 3.7.2 or higher
+- Java Runtime Environment (JRE) or Java Development Kit (JDK) for running Minecraft
+- Internet connection for downloading game assets and libraries
+
+### Contributing
+
+Contributions are welcome! Feel free to submit issues or pull requests on the GitHub repository.
+
+### License
+
+This package is available under the MIT License.
