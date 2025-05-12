@@ -42,6 +42,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Manager for building classpath for Minecraft.
   final ClasspathManager _classpathManager;
 
+  /// Downloader for game assets (textures, sounds, etc.).
+  final AssetDownloader assetDownloader;
+
   /// Manager for handling archive extraction and native libraries.
   final ArchivesManager _archivesManager;
 
@@ -53,6 +56,8 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
 
   /// Callback for reporting operation progress.
   final OperationProgressCallback? _onOperationProgress;
+
+  OperationProgressCallback? get onOperationProgress => _onOperationProgress;
 
   /// Rate at which progress updates are reported (in percentage points).
   final int _progressReportRate;
@@ -140,6 +145,12 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
          onOperationProgress: onOperationProgress,
          progressReportRate: progressReportRate,
        ),
+       assetDownloader = AssetDownloader(
+         gameDir: gameDir,
+         onDownloadProgress: onDownloadProgress,
+         onOperationProgress: onOperationProgress,
+         progressReportRate: progressReportRate,
+       ),
        _archivesManager = ArchivesManager(
          onOperationProgress: onOperationProgress,
          progressReportRate: progressReportRate,
@@ -149,6 +160,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
          profiles: profiles,
          activeProfile: activeProfile,
        );
+
+  /// Get the classpath manager
+  ClasspathManager get classpathManager => _classpathManager;
 
   /// Normalizes a file path to an absolute path.
   ///
@@ -276,13 +290,6 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
       if (versionInfo == null) {
         throw Exception('Failed to get version info for $versionId');
       }
-
-      final assetDownloader = AssetDownloader(
-        gameDir: _gameDir,
-        onDownloadProgress: _onDownloadProgress,
-        onOperationProgress: _onOperationProgress,
-        progressReportRate: _progressReportRate,
-      );
 
       await assetDownloader.downloadAssets(versionInfo);
       await assetDownloader.completionFuture;
