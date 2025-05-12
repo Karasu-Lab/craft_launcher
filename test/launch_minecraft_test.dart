@@ -14,7 +14,7 @@ void main() {
 
   final String javaDir =
       Platform.isWindows
-          ? 'C:\\Program Files\\Java\\jdk-17.0.5\\'
+          ? 'C:\\Program Files\\Java\\jdk-21\\'
           : '/usr/bin/java';
 
   final testProfile = Profile(
@@ -23,7 +23,7 @@ void main() {
     type: 'latest-release',
     created: DateTime.now().toIso8601String(),
     lastUsed: DateTime.now().toIso8601String(),
-    lastVersionId: '1.12.2',
+    lastVersionId: '1.21.5',
   );
 
   final testProfiles = LauncherProfiles(

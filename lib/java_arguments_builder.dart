@@ -28,7 +28,6 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
   String _launcherName = 'CraftLauncher';
   String _launcherVersion = '1.0.0';
 
-  // 機能フラグ
   final Map<String, bool> _featureFlags = {
     'is_demo_user': false,
     'has_custom_resolution': false,
@@ -38,9 +37,8 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     'is_quick_play_realms': false,
   };
 
-  // 解像度
-  int _width = 854; // デフォルト解像度を設定
-  int _height = 480; // デフォルト解像度を設定
+  int _width = 854;
+  int _height = 480;
 
   // クイックプレイパス
   String? _quickPlayPath;
@@ -215,7 +213,6 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
 
     final List<String> args = [];
 
-    // Javaコマンドの正しい順序: クラスパス、JVMオプション、メインクラス、アプリケーション引数
     if (_classPaths.isNotEmpty) {
       args.add('-cp');
       args.add(_classPaths.join(Platform.isWindows ? ';' : ':'));
@@ -251,7 +248,6 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
   List<String> _processArguments(List<dynamic> args, ArgumentType type) {
     final List<String> processedArgs = [];
 
-    // 変数名と対応する値のマッピング - すべてのフィールドを使用
     final Map<String, String?> variableMap = {
       'version_name': _version,
       'game_directory': _gameDir,
@@ -299,15 +295,11 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
       variableMap.addAll({'quickPlayRealms': _quickPlayRealms});
     }
 
-    // オプション引数の先頭パターンリスト
     final List<String> optionPrefixes = ['--', '-', '-D'];
 
-    // クラスパスが追加済みかどうかを追跡
     bool classPathAdded = false;
 
-    // JavaVMの引数とMinecraftの起動引数を明確に分離
     if (type == ArgumentType.jvm) {
-      // クラスパスを最初に追加（重複を避けるため）
       if (_classPaths.isNotEmpty && !classPathAdded) {
         processedArgs.add('-cp');
         processedArgs.add(_classPaths.join(Platform.isWindows ? ';' : ':'));
@@ -318,36 +310,30 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     for (int i = 0; i < args.length; i++) {
       var arg = args[i];
 
-      // クラスパスの重複を避ける
       if (arg is String && (arg == '-cp' || arg == '-classpath')) {
         if (classPathAdded) {
-          // クラスパスがすでに追加されている場合は、この引数とその値をスキップ
-          i++; // 次の引数（クラスパスの値）もスキップ
+          i++;
           continue;
         } else {
           classPathAdded = true;
         }
       }
 
-      // 文字列引数の処理
       if (arg is String) {
         String processedArg = arg;
 
-        // すべての変数置換を適用
         variableMap.forEach((key, value) {
           if (value != null) {
             processedArg = _replaceWithRegex(processedArg, '\${$key}', value);
           }
         });
 
-        // インデックスが1以上で、前の引数とペアになっている場合の処理
         if (i > 0 &&
             processedArg.startsWith('\${') &&
             processedArg.endsWith('}')) {
           final previousArg =
               processedArgs.isNotEmpty ? processedArgs.last : null;
 
-          // 前の引数がオプション引数かチェック
           bool isPreviousOption = false;
           for (final prefix in optionPrefixes) {
             if (previousArg != null && previousArg.startsWith(prefix)) {
@@ -357,61 +343,49 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
           }
 
           if (isPreviousOption) {
-            // 変数名を取得 (${variable_name}から変数名部分を抽出)
             final varName = processedArg.substring(2, processedArg.length - 1);
             final value = variableMap[varName];
 
-            // 値がnullの場合は前の引数も削除
             if (value == null) {
-              processedArgs.removeLast(); // 前のオプション引数を削除
+              processedArgs.removeLast();
             } else {
-              // 値がある場合は追加
               processedArgs.add(value);
             }
           } else {
-            // 前の引数がオプション引数でない場合は通常通り追加
             if (!processedArg.startsWith('\${') ||
                 !processedArg.endsWith('}')) {
-              // 変数が置換されていれば追加
               processedArgs.add(processedArg);
             }
           }
         } else {
-          // -Dで始まる引数は特別な処理（変数置換後に追加）
           if (processedArg.startsWith('-D')) {
-            // -D引数内の変数が置換されたかチェック
             if (!processedArg.contains('\${')) {
               processedArgs.add(processedArg);
             }
           } else {
-            // 通常の引数はそのまま追加
             processedArgs.add(processedArg);
           }
         }
         continue;
       }
 
-      // Map型の引数(JvmRule)の処理
       if (arg is Map<String, dynamic>) {
         var jvmRule = JvmRule.fromJson(arg);
         bool shouldApply = _evaluateRules(jvmRule.rules);
 
         if (shouldApply) {
-          // 特徴フラグに基づく評価を追加
           bool featuresMatch = _evaluateFeatures(jvmRule.rules);
           if (!featuresMatch) continue;
 
           if (jvmRule.value is String) {
             String value = jvmRule.value as String;
 
-            // すべての変数置換を適用
             variableMap.forEach((key, varValue) {
               if (varValue != null) {
                 value = _replaceWithRegex(value, '\${$key}', varValue);
               }
             });
 
-            // 変数が正常に置換された場合のみ追加
             if (!value.contains('\${')) {
               processedArgs.add(value);
             }
@@ -421,14 +395,12 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
             for (int j = 0; j < valueList.length; j++) {
               String value = valueList[j];
 
-              // すべての変数置換を適用
               variableMap.forEach((key, varValue) {
                 if (varValue != null) {
                   value = _replaceWithRegex(value, '\${$key}', varValue);
                 }
               });
 
-              // ペア引数の処理（リスト内でも同様に処理）
               if (j > 0 && value.startsWith('\${') && value.endsWith('}')) {
                 final previousValue =
                     processedArgs.isNotEmpty ? processedArgs.last : null;
@@ -452,13 +424,11 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
                     processedArgs.add(resolvedValue);
                   }
                 } else {
-                  // 変数が置換された場合のみ追加
                   if (!value.contains('\${')) {
                     processedArgs.add(value);
                   }
                 }
               } else {
-                // 変数が置換された場合のみ追加
                 if (!value.contains('\${')) {
                   processedArgs.add(value);
                 }
@@ -476,10 +446,9 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     final List<String> processedArgs = [];
     final List<String> argParts = arguments.split(' ');
 
-    // 変数名と対応する値のマッピング - 旧形式のMinecraft引数用
     final Map<String, String?> variableMap = {
       'version_name': _version,
-      'version_type': 'release', // デフォルト値
+      'version_type': 'release',
       'game_directory': _gameDir,
       'assets_root': _gameDir != null ? '$_gameDir/assets' : null,
       'assets_index_name': _assetsIndexName,
@@ -491,53 +460,49 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
       'resolution_height': _height.toString(),
     };
 
-    // オプション引数の先頭パターンリスト
-    final List<String> optionPrefixes = ['--', '-', '-D'];
-
     for (int i = 0; i < argParts.length; i++) {
       var arg = argParts[i];
-      
-      // 引数の処理
+
       if (arg.startsWith('--') && i + 1 < argParts.length) {
         String nextArg = argParts[i + 1];
-        
-        // 次の引数が変数プレースホルダーの場合
+
         if (nextArg.startsWith('\${') && nextArg.endsWith('}')) {
-          // 変数名を抽出
           final varName = nextArg.substring(2, nextArg.length - 1);
           final value = variableMap[varName];
-          
-          // 値が存在する場合のみ引数を追加
+
           if (value != null) {
             processedArgs.add(arg);
             processedArgs.add(value);
           }
-          // 次の引数は既に処理したのでスキップ
           i++;
         } else {
-          // 通常の引数の場合はそのまま追加
           processedArgs.add(arg);
-          // 次の引数がオプションでなければ値として追加
           if (i + 1 < argParts.length && !argParts[i + 1].startsWith('--')) {
             processedArgs.add(argParts[i + 1]);
             i++;
           }
         }
       } else {
-        // オプション以外の引数はそのまま追加
         String processedArg = arg;
-        
-        // 変数置換を適用
+
         variableMap.forEach((key, value) {
           if (value != null) {
             processedArg = _replaceWithRegex(processedArg, '\${$key}', value);
           }
         });
-        
-        // 変数が置換された場合のみ追加
+
         if (!processedArg.contains('\${')) {
           processedArgs.add(processedArg);
         }
+      }
+    }
+
+    processedArgs.addAll(['--width', _width.toString()]);
+    processedArgs.addAll(['--height', _height.toString()]);
+
+    if (_minecraftArguments != null) {
+      if (_minecraftArguments!.contains('--userProperties')) {
+        processedArgs.addAll(['--userProperties', '{}']);
       }
     }
 
@@ -584,7 +549,6 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     return shouldApply;
   }
 
-  // 特徴フラグの評価用の新しい関数
   bool _evaluateFeatures(List<JvmRuleCondition> rules) {
     if (rules.isEmpty) {
       return true;
@@ -592,20 +556,16 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
 
     for (final rule in rules) {
       if (rule.features != null) {
-        // featuresが存在する場合、それらが設定されているかチェック
         for (final feature in rule.features!.entries) {
           final key = feature.key;
           final expectedValue = feature.value;
 
-          // _featureFlagsにあるフラグと比較
           if (_featureFlags.containsKey(key)) {
             final actualValue = _featureFlags[key];
-            // 期待される値と実際の値が一致しない場合はfalseを返す
             if (expectedValue != actualValue) {
               return false;
             }
           } else {
-            // フラグが設定されていない場合、期待値がtrueならfalseを返す
             if (expectedValue == true) {
               return false;
             }
@@ -618,12 +578,10 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
   }
 
   bool _is32BitArchitecture() {
-    // プラットフォームに応じて32ビットかどうかを判定
     if (Platform.isWindows) {
       return Platform.environment['PROCESSOR_ARCHITECTURE']?.toLowerCase() ==
           'x86';
     } else {
-      // Linuxとmacでは通常64ビットですが、必要に応じて判定ロジックを追加
       return false;
     }
   }

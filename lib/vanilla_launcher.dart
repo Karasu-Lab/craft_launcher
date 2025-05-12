@@ -4,7 +4,6 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'dart:async';
 
-import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
 import 'package:craft_launcher_core/craft_launcher_core.dart';
 import 'package:craft_launcher_core/interfaces/vanilla_launcher_interface.dart';
@@ -413,7 +412,6 @@ class VanillaLauncher implements VanillaLauncherInterface {
     int totalLibraries = 0;
     List<Library> nativeLibraries = [];
 
-    // すべてのネイティブライブラリを取得
     for (final library in libraries) {
       final downloads = library.downloads;
       if (downloads == null) continue;
@@ -443,15 +441,12 @@ class VanillaLauncher implements VanillaLauncherInterface {
       _onOperationProgress(operationName, 0, totalLibraries, 0);
     }
 
-    // 一時作業ディレクトリを作成
     final tempDir = await Directory.systemTemp.createTemp('mc_natives_');
     try {
-      // 抽出されたネイティブファイルを保持
       List<File> allExtractedNativeFiles = [];
       int processedLibraries = 0;
       int lastReportedPercentage = 0;
 
-      // 各ネイティブライブラリを処理
       for (final library in nativeLibraries) {
         final downloads = library.downloads!;
         final classifiers = downloads.classifiers!;
@@ -477,7 +472,6 @@ class VanillaLauncher implements VanillaLauncherInterface {
         final librariesDir = _getLibrariesDir();
         final nativeJar = _normalizePath(p.join(librariesDir, path));
 
-        // JARファイルが存在しない場合はダウンロード
         if (!await File(nativeJar).exists()) {
           debugPrint(
             'Native JAR file not found, attempting to download: $nativeJar',
@@ -488,7 +482,6 @@ class VanillaLauncher implements VanillaLauncherInterface {
             debugPrint('Error downloading libraries: $e');
           }
 
-          // ダウンロード後も存在しない場合はURLから直接ダウンロード試行
           if (!await File(nativeJar).exists() && nativeArtifact.url != null) {
             debugPrint(
               'Attempting direct download of native library: ${nativeArtifact.url}',
@@ -505,7 +498,6 @@ class VanillaLauncher implements VanillaLauncherInterface {
             }
           }
 
-          // それでも存在しない場合はスキップ
           if (!await File(nativeJar).exists()) {
             debugPrint('Failed to download native library, skipping: $path');
             processedLibraries++;
@@ -514,18 +506,15 @@ class VanillaLauncher implements VanillaLauncherInterface {
         }
 
         try {
-          // JARファイルを読み込み
           final nativeJarFile = File(nativeJar);
           final jarBytes = await nativeJarFile.readAsBytes();
           final archive = ZipDecoder().decodeBytes(jarBytes);
 
-          // プラットフォームに適したネイティブライブラリを抽出して一時フォルダに保存
           for (final file in archive) {
             if (file.isFile) {
               final fileName = p.basename(file.name);
               final fileExt = p.extension(fileName).toLowerCase();
 
-              // 環境に適したファイルかチェック
               bool isValidForPlatform = false;
               if (Platform.isWindows) {
                 isValidForPlatform = nativeExtensions.any(
@@ -548,7 +537,6 @@ class VanillaLauncher implements VanillaLauncherInterface {
                   await tempFileDir.create(recursive: true);
                 }
 
-                // ファイルの内容を一時ファイルに書き込む
                 final data = file.content;
                 final tempFile = await File(
                   tempFilePath,
@@ -562,7 +550,6 @@ class VanillaLauncher implements VanillaLauncherInterface {
 
           processedLibraries++;
 
-          // 進捗状況の報告
           if (_onOperationProgress != null && totalLibraries > 0) {
             final percentage = (processedLibraries / totalLibraries) * 100;
             final reportPercentage =
@@ -584,7 +571,6 @@ class VanillaLauncher implements VanillaLauncherInterface {
         }
       }
 
-      // 全てのネイティブライブラリをZIPにまとめる
       if (allExtractedNativeFiles.isNotEmpty) {
         final collectionZipPath = p.join(
           tempDir.path,
@@ -603,37 +589,41 @@ class VanillaLauncher implements VanillaLauncherInterface {
 
           collectionZipEncoder.close();
 
-          // ZIPファイルのハッシュを計算
           final zipHash = await _calculateSha1Hash(collectionZipPath);
           resultNativesDir = _getNativesDir(versionId, zipHash);
 
-          // 既に同じハッシュのディレクトリがある場合は再利用
           if (await Directory(resultNativesDir).exists()) {
-            debugPrint('Using existing natives directory with hash: $zipHash');
-          } else {
-            // 新しいディレクトリを作成して展開
-            await _ensureDirectory(resultNativesDir);
-
-            // 抽出したファイルを最終的な場所にコピー
-            for (final file in allExtractedNativeFiles) {
-              final fileName = p.basename(file.path);
-              final targetPath = p.join(resultNativesDir, fileName);
-
-              try {
-                await file.copy(targetPath);
-              } catch (e) {
-                debugPrint('Failed to copy native library $fileName: $e');
-                if (await File(targetPath).exists()) {
-                  await File(targetPath).delete();
-                  await file.copy(targetPath);
-                }
-              }
+            debugPrint(
+              'Deleting existing natives directory with hash: $zipHash',
+            );
+            try {
+              await (Directory(resultNativesDir)).delete(recursive: true);
+            } catch (e) {
+              debugPrint(
+                'Failed to delete the directory with recursive option: $e',
+              );
             }
-
-            debugPrint('Created new natives directory: $resultNativesDir');
           }
 
-          // 結果の検証
+          await _ensureDirectory(resultNativesDir);
+
+          for (final file in allExtractedNativeFiles) {
+            final fileName = p.basename(file.path);
+            final targetPath = p.join(resultNativesDir, fileName);
+
+            try {
+              await file.copy(targetPath);
+            } catch (e) {
+              debugPrint('Failed to copy native library $fileName: $e');
+              if (await File(targetPath).exists()) {
+                await File(targetPath).delete();
+                await file.copy(targetPath);
+              }
+            }
+          }
+
+          debugPrint('Created new natives directory: $resultNativesDir');
+
           final extractedFiles =
               await Directory(resultNativesDir).list().toList();
           debugPrint('Final native libraries count: ${extractedFiles.length}');
@@ -642,14 +632,12 @@ class VanillaLauncher implements VanillaLauncherInterface {
         }
       }
 
-      // ネイティブライブラリディレクトリが作成されなかった場合のフォールバック
       if (resultNativesDir.isEmpty) {
         debugPrint('No natives directory created, using default');
         resultNativesDir = _getNativesDir(versionId, 'default');
         await _ensureDirectory(resultNativesDir);
       }
     } finally {
-      // 一時ディレクトリを削除
       try {
         await tempDir.delete(recursive: true);
         debugPrint('Temporary directory cleaned up');
@@ -658,7 +646,6 @@ class VanillaLauncher implements VanillaLauncherInterface {
       }
     }
 
-    // META-INFディレクトリを削除（必要な場合）
     final metaInfDir = p.join(resultNativesDir, 'META-INF');
     if (await Directory(metaInfDir).exists()) {
       try {
@@ -970,6 +957,27 @@ class VanillaLauncher implements VanillaLauncherInterface {
     try {
       for (final completer in _activeCompleters) {
         await completer.future;
+      }
+
+      final Map<String, String> environment = Map.of(Platform.environment);
+
+      if (Platform.isWindows) {
+        final String currentPath = environment['PATH'] ?? '';
+        environment['PATH'] = '$nativesPath;$currentPath';
+
+        debugPrint('Added natives directory to PATH: $nativesPath');
+        debugPrint('Java library path: -Djava.library.path=$nativesPath');
+      } else {
+        final String currentLdLibraryPath =
+            environment['LD_LIBRARY_PATH'] ?? '';
+        environment['LD_LIBRARY_PATH'] = '$nativesPath:$currentLdLibraryPath';
+
+        if (Platform.isMacOS) {
+          final String currentDyldLibraryPath =
+              environment['DYLD_LIBRARY_PATH'] ?? '';
+          environment['DYLD_LIBRARY_PATH'] =
+              '$nativesPath:$currentDyldLibraryPath';
+        }
       }
 
       _minecraftProcess = await Process.start(
