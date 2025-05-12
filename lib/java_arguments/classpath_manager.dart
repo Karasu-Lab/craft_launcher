@@ -117,7 +117,7 @@ class ClasspathManager {
           throw Exception('Failed to download client JAR file: $clientJarPath');
         }
       } catch (e) {
-        throw Exception('Failed to download Minecraft client files: $e');
+        debugPrint('Failed to download Minecraft client files skipping it: $e');
       }
     }
 
