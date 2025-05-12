@@ -7,12 +7,48 @@ import 'package:craft_launcher_core/downloaders/abstract_downloader.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+/// Handles downloading of Minecraft game assets.
+///
+/// Downloads and manages game assets such as textures, sounds, and other resources
+/// required for Minecraft to run properly.
 class AssetDownloader extends AbstractDownloader {
+  /// Completer that tracks the overall asset download operation completion.
+  ///
+  /// [_assetsCompleter]
+  /// Completes when all assets have been downloaded successfully.
   final Completer<void> _assetsCompleter = Completer<void>();
+
+  /// Callback for reporting download progress of individual files.
+  ///
+  /// [_onDownloadProgress]
+  /// Optional callback that receives progress updates during asset downloads.
   final DownloadProgressCallback? _onDownloadProgress;
+
+  /// Callback for reporting progress of the overall assets download operation.
+  ///
+  /// [_onOperationProgress]
+  /// Optional callback that receives progress updates for the assets download operation.
   final OperationProgressCallback? _onOperationProgress;
+
+  /// Rate at which to report download progress.
+  ///
+  /// [_progressReportRate]
+  /// Controls how frequently progress updates are sent, in percentage points.
   final int _progressReportRate;
 
+  /// Creates a new asset downloader.
+  ///
+  /// [gameDir]
+  /// The base game directory where assets will be stored.
+  ///
+  /// [onDownloadProgress]
+  /// Optional callback for reporting individual file download progress.
+  ///
+  /// [onOperationProgress]
+  /// Optional callback for reporting overall operation progress.
+  ///
+  /// [progressReportRate]
+  /// How often to report progress, defaults to every 10%.
   AssetDownloader({
     required super.gameDir,
     DownloadProgressCallback? onDownloadProgress,
@@ -22,7 +58,16 @@ class AssetDownloader extends AbstractDownloader {
        _onOperationProgress = onOperationProgress,
        _progressReportRate = progressReportRate;
 
-  /// アセットのダウンロードを実行する
+  /// Downloads all assets required for the specified Minecraft version.
+  ///
+  /// First downloads the asset index file, then iterates through all assets
+  /// listed in the index and downloads them. Progress is reported via callbacks.
+  ///
+  /// [versionInfo]
+  /// Information about the Minecraft version whose assets should be downloaded.
+  ///
+  /// Throws an exception if the asset index is missing or if any part of the
+  /// download process fails.
   Future<void> downloadAssets(VersionInfo versionInfo) async {
     if (versionInfo.assetIndex == null) {
       throw Exception('Failed to get asset index info');
@@ -80,7 +125,6 @@ class AssetDownloader extends AbstractDownloader {
 
           completedAssets++;
 
-          // Report overall progress
           if (_onDownloadProgress != null) {
             final percentage = (completedAssets / totalAssets) * 100;
             final reportPercentage =
@@ -115,6 +159,11 @@ class AssetDownloader extends AbstractDownloader {
     }
   }
 
-  /// アセットのダウンロード完了を待機する
+  /// Returns a future that completes when all assets have been downloaded.
+  ///
+  /// Can be used to wait for the asset download operation to complete or to
+  /// catch any errors that occurred during the download process.
+  ///
+  /// Returns a future that completes when the download operation is finished.
   Future<void> get completionFuture => _assetsCompleter.future;
 }

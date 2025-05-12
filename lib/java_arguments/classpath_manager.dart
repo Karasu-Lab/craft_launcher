@@ -5,14 +5,54 @@ import 'package:craft_launcher_core/downloaders/library_downloader.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
-/// クラスパスの管理と構築を行うクラス
+/// Manages the Java classpath for Minecraft game execution.
+///
+/// Responsible for building the classpath required to run the Minecraft client,
+/// including the main client JAR and all required libraries.
 class ClasspathManager {
+  /// The root directory for the Minecraft game files.
+  ///
+  /// [_gameDir]
+  /// Path to the main Minecraft directory.
   final String _gameDir;
+
+  /// The directory containing all library files.
+  ///
+  /// [_librariesDir]
+  /// Path to the libraries directory within the game directory.
   final String _librariesDir;
+
+  /// Callback for reporting download progress of individual files.
+  ///
+  /// [_onDownloadProgress]
+  /// Optional callback that receives progress updates during file downloads.
   final DownloadProgressCallback? _onDownloadProgress;
+
+  /// Callback for reporting progress of the overall download operation.
+  ///
+  /// [_onOperationProgress]
+  /// Optional callback that receives progress updates for the overall operation.
   final OperationProgressCallback? _onOperationProgress;
+
+  /// Rate at which to report download progress.
+  ///
+  /// [_progressReportRate]
+  /// Controls how frequently progress updates are sent, in percentage points.
   final int _progressReportRate;
 
+  /// Creates a new classpath manager.
+  ///
+  /// [gameDir]
+  /// The root directory for Minecraft game files.
+  ///
+  /// [onDownloadProgress]
+  /// Optional callback for reporting file download progress.
+  ///
+  /// [onOperationProgress]
+  /// Optional callback for reporting overall operation progress.
+  ///
+  /// [progressReportRate]
+  /// How often to report progress, defaults to every 10%.
   ClasspathManager({
     required String gameDir,
     DownloadProgressCallback? onDownloadProgress,
@@ -24,16 +64,42 @@ class ClasspathManager {
        _onOperationProgress = onOperationProgress,
        _progressReportRate = progressReportRate;
 
+  /// Normalizes a file path to an absolute path with correct separators.
+  ///
+  /// [path]
+  /// The path to normalize.
+  ///
+  /// Returns the normalized absolute path.
   String _normalizePath(String path) {
     final normalized = p.normalize(path);
     return p.isAbsolute(normalized) ? normalized : p.absolute(normalized);
   }
 
+  /// Gets the path to the Minecraft client JAR file for a specific version.
+  ///
+  /// [versionId]
+  /// The Minecraft version identifier.
+  ///
+  /// Returns the absolute path to the client JAR file.
   String getClientJarPath(String versionId) {
-    return _normalizePath(p.join(_gameDir, 'versions', versionId, '$versionId.jar'));
+    return _normalizePath(
+      p.join(_gameDir, 'versions', versionId, '$versionId.jar'),
+    );
   }
 
-  /// 指定されたバージョン情報とバージョンIDに基づいてクラスパスを構築する
+  /// Builds the full Java classpath for the specified Minecraft version.
+  ///
+  /// Collects all required JAR files, including the client JAR and all
+  /// libraries required by the version. Downloads any missing files as needed.
+  ///
+  /// [versionInfo]
+  /// The version information containing library dependencies.
+  ///
+  /// [versionId]
+  /// The Minecraft version identifier.
+  ///
+  /// Returns a list of paths to be included in the Java classpath.
+  /// Throws an exception if critical files cannot be downloaded.
   Future<List<String>> buildClasspath(
     VersionInfo versionInfo,
     String versionId,
@@ -130,8 +196,19 @@ class ClasspathManager {
     return classpath;
   }
 
-  /// クライアントJARファイルをダウンロードする
-  Future<void> downloadClientJar(VersionInfo versionInfo, String versionId) async {
+  /// Downloads the Minecraft client JAR file for the specified version.
+  ///
+  /// [versionInfo]
+  /// The version information containing download URLs.
+  ///
+  /// [versionId]
+  /// The Minecraft version identifier.
+  ///
+  /// Throws an exception if the download fails.
+  Future<void> downloadClientJar(
+    VersionInfo versionInfo,
+    String versionId,
+  ) async {
     try {
       final libraryDownloader = LibraryDownloader(
         gameDir: _gameDir,
@@ -148,7 +225,12 @@ class ClasspathManager {
     }
   }
 
-  /// ライブラリをダウンロードする
+  /// Downloads all required library files for the specified Minecraft version.
+  ///
+  /// [versionInfo]
+  /// The version information containing library dependencies and download URLs.
+  ///
+  /// Throws an exception if the download process fails.
   Future<void> downloadLibraries(VersionInfo versionInfo) async {
     try {
       final libraryDownloader = LibraryDownloader(

@@ -18,7 +18,7 @@ Add this package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  craft_launcher_core: ^0.0.1
+  craft_launcher_core: ^0.0.3
 ```
 
 Then run:
@@ -123,7 +123,9 @@ await launcher.launch();
 ### Creating a Custom Launcher Adapter
 
 ```dart
+import 'package:craft_launcher_core/vanilla_launcher.dart';
 import 'package:craft_launcher_core/launcher_adapter.dart';
+import 'package:craft_launcher_core/models/models.dart';
 
 class ModdedLauncherAdapter implements LauncherAdapter {
   final LauncherAdapter _vanillaAdapter;
@@ -134,7 +136,7 @@ class ModdedLauncherAdapter implements LauncherAdapter {
   Future<void> afterBuildClasspath(
     VersionInfo versionInfo, 
     String versionId, 
-    List<String> classpath
+    List<String> classpath,
   ) async {
     // Add mod loaders to classpath
     classpath.add('/path/to/forge.jar');
@@ -155,12 +157,54 @@ class ModdedLauncherAdapter implements LauncherAdapter {
   ) async {
     // Add custom JVM arguments
     javaArgs.add('-Dfml.ignoreInvalidMinecraftCertificates=true');
+    javaArgs.add('-Dfml.ignorePatchDiscrepancies=true');
     
+    // Setup mod-specific environment variables
+    environment['FORGE_LOGGING_MARKERS'] = 'SCAN,REGISTRIES,REGISTRYDUMP';
+    
+    // Continue with vanilla behavior
     await _vanillaAdapter.beforeStartProcess(
-      javaExe, javaArgs, workingDirectory, environment, versionId, auth
+      javaExe, javaArgs, workingDirectory, environment, versionId, auth,
     );
   }
+  
+  @override
+  Future<void> afterStartProcess(
+    String versionId,
+    MinecraftProcessInfo processInfo,
+    MinecraftAuth? auth,
+  ) async {
+    // Do post-process operations like starting a mod server or logging
+    print('Modded Minecraft started with PID: ${processInfo.pid}');
+    
+    // Continue with vanilla behavior if needed
+    await _vanillaAdapter.afterStartProcess(versionId, processInfo, auth);
+  }
+  
+  // Implement other hooks as needed to customize the launch process
+  @override
+  Future<void> beforeDownloadAssets(String versionId) async {
+    print('Preparing to download assets for modded Minecraft $versionId');
+    await _vanillaAdapter.beforeDownloadAssets(versionId);
+  }
 }
+
+// Using the custom adapter with a vanilla launcher
+final vanillaLauncher = VanillaLauncher(
+  gameDir: '/path/to/minecraft',
+  javaDir: '/path/to/java',
+  profiles: myProfiles,
+  activeProfile: myProfile,
+  // Other configuration...
+);
+
+// Wrap the vanilla launcher with your custom adapter
+final moddedAdapter = ModdedLauncherAdapter(vanillaLauncher);
+
+// Launch using the modded adapter
+// Note: you still use the vanilla launcher's launch method
+// but the adapter hooks will be called during the process
+await vanillaLauncher.launch();
 ```
 
 ## Additional information

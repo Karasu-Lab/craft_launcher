@@ -7,21 +7,56 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:crypto/crypto.dart';
 
+/// Manages the extraction and handling of game archive files.
+///
+/// Responsible for extracting native libraries from JAR files and
+/// organizing them for use by the Minecraft client.
 class ArchivesManager {
+  /// Callback for reporting progress of extraction operations.
+  ///
+  /// [_onOperationProgress]
+  /// Optional callback that receives progress updates during extraction.
   final OperationProgressCallback? _onOperationProgress;
+
+  /// Rate at which to report extraction progress.
+  ///
+  /// [_progressReportRate]
+  /// Controls how frequently progress updates are sent, in percentage points.
   final int _progressReportRate;
 
+  /// Creates a new archives manager instance.
+  ///
+  /// [onOperationProgress]
+  /// Optional callback for reporting extraction progress.
+  ///
+  /// [progressReportRate]
+  /// How often to report progress, defaults to every 10%.
   ArchivesManager({
     OperationProgressCallback? onOperationProgress,
     int progressReportRate = 10,
   }) : _onOperationProgress = onOperationProgress,
        _progressReportRate = progressReportRate;
 
+  /// Normalizes a file path to an absolute path with correct separators.
+  ///
+  /// Handles converting relative paths to absolute paths and normalizes
+  /// the path format according to the current platform.
+  ///
+  /// [path]
+  /// The path to normalize.
+  ///
+  /// Returns the normalized absolute path.
   String _normalizePath(String path) {
     final normalized = p.normalize(path);
     return p.isAbsolute(normalized) ? normalized : p.absolute(normalized);
   }
 
+  /// Ensures a directory exists, creating it if necessary.
+  ///
+  /// [path]
+  /// The path to the directory that should exist.
+  ///
+  /// Returns a Directory object for the ensured directory.
   Future<Directory> _ensureDirectory(String path) async {
     final normalizedPath = _normalizePath(path);
     final dir = Directory(normalizedPath);
@@ -31,6 +66,15 @@ class ArchivesManager {
     return dir;
   }
 
+  /// Calculates SHA-1 hash of a file.
+  ///
+  /// Used to create unique identifiers for native library collections
+  /// to manage caching and versioning.
+  ///
+  /// [filePath]
+  /// Path to the file to hash.
+  ///
+  /// Returns the SHA-1 hash as a hexadecimal string.
   Future<String> calculateSha1Hash(String filePath) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
@@ -38,6 +82,30 @@ class ArchivesManager {
     return digest.toString();
   }
 
+  /// Extracts platform-specific native libraries from JAR files.
+  ///
+  /// Identifies and extracts native libraries appropriate for the current platform
+  /// from the game's library JAR files, placing them in a dedicated directory.
+  ///
+  /// [libraries]
+  /// List of library definitions to process.
+  ///
+  /// [versionId]
+  /// The Minecraft version identifier.
+  ///
+  /// [gameDir]
+  /// Base game directory.
+  ///
+  /// [librariesDir]
+  /// Directory containing downloaded library JAR files.
+  ///
+  /// [getNativesDir]
+  /// Function that returns the path to the natives directory based on a hash.
+  ///
+  /// [downloadFile]
+  /// Function to download a file if it doesn't exist locally.
+  ///
+  /// Returns the path to the directory containing extracted native libraries.
   Future<String> extractNativeLibraries({
     required List<Library> libraries,
     required String versionId,

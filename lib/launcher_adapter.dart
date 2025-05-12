@@ -45,7 +45,7 @@ abstract interface class LauncherAdapter {
   );
 
   /// Hook called before building classpath
-  Future<void> beforeBuildClasspath(VersionInfo versionInfo, String versionId);
+  Future<List<String>> beforeBuildClasspath(VersionInfo versionInfo, String versionId);
 
   /// Hook called before downloading assets
   Future<void> beforeDownloadAssets(String versionId);

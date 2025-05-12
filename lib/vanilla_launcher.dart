@@ -20,36 +20,90 @@ import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:craft_launcher_core/environments/environment_manager.dart';
 
+/// Implementation of the Vanilla Minecraft launcher that handles all aspects of
+/// launching the game, including downloading assets, libraries, and configuring
+/// Java arguments.
 class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
+  /// Builder for constructing Java arguments for Minecraft launch.
   final JavaArgumentsBuilder _javaArgumentsBuilder;
 
+  /// Profile information for the Minecraft account.
   final MinecraftAccountProfile? _minecraftAccountProfile;
+  
+  /// Microsoft account information for authentication.
   final MicrosoftAccount? _microsoftAccount;
+  
+  /// Minecraft authentication details.
   final MinecraftAuth? _minecraftAuth;
 
+  /// Manager for handling launcher profiles.
   final ProfileManager _profileManager;
+  
+  /// Manager for building classpath for Minecraft.
   final ClasspathManager _classpathManager;
+  
+  /// Manager for handling archive extraction and native libraries.
   final ArchivesManager _archivesManager;
+  
+  /// Manager for handling Minecraft process.
   final ProcessManager _processManager = ProcessManager();
 
+  /// Callback for reporting download progress.
   final DownloadProgressCallback? _onDownloadProgress;
+  
+  /// Callback for reporting operation progress.
   final OperationProgressCallback? _onOperationProgress;
+  
+  /// Rate at which progress updates are reported (in percentage points).
   final int _progressReportRate;
 
+  /// Name of the launcher.
   final String _launcherName;
+  
+  /// Version of the launcher.
   final String _launcherVersion;
 
+  /// Callback triggered when the Java process exits.
   JavaExitCallback? onExit;
+  
+  /// Directory where game files are stored.
   String _gameDir;
+  
+  /// Directory where Java is installed.
   String _javaDir;
+  
+  /// Information about the currently running Minecraft process.
   MinecraftProcessInfo? _minecraftProcessInfo;
 
+  /// Completer for tracking native libraries extraction completion.
   Completer<void>? _nativeLibrariesCompleter;
+  
+  /// Completer for tracking classpath building completion.
   Completer<void>? _classpathCompleter;
+  
+  /// Completer for tracking assets download completion.
   Completer<void>? _assetsCompleter;
+  
+  /// Completer for tracking libraries download completion.
   Completer<void>? _librariesCompleter;
+  
+  /// List of active completers for tracking ongoing operations.
   List<Completer<void>> _activeCompleters = [];
 
+  /// Creates a new VanillaLauncher instance.
+  ///
+  /// [gameDir] - Directory where the game files are stored
+  /// [javaDir] - Directory where Java is installed
+  /// [profiles] - Launcher profiles configuration
+  /// [activeProfile] - Currently active profile
+  /// [minecraftAccountProfile] - Optional Minecraft account profile information
+  /// [microsoftAccount] - Optional Microsoft account for authentication
+  /// [minecraftAuth] - Optional Minecraft authentication details
+  /// [onDownloadProgress] - Optional callback for download progress reporting
+  /// [onOperationProgress] - Optional callback for operation progress reporting
+  /// [progressReportRate] - How often to report progress (in percentage points)
+  /// [launcherName] - Name of the launcher
+  /// [launcherVersion] - Version of the launcher
   VanillaLauncher({
     required String gameDir,
     required String javaDir,
@@ -93,11 +147,19 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
          activeProfile: activeProfile,
        );
 
+  /// Normalizes a file path to an absolute path.
+  ///
+  /// [path] - Path to normalize
+  /// Returns the normalized absolute path.
   String _normalizePath(String path) {
     final normalized = p.normalize(path);
     return p.isAbsolute(normalized) ? normalized : p.absolute(normalized);
   }
 
+  /// Ensures that a directory exists, creating it if necessary.
+  ///
+  /// [path] - Path to the directory
+  /// Returns the directory as a Directory object.
   Future<Directory> _ensureDirectory(String path) async {
     final normalizedPath = _normalizePath(path);
     final dir = Directory(normalizedPath);
@@ -107,6 +169,13 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     return dir;
   }
 
+  /// Downloads a file from a URL to a local path.
+  ///
+  /// [url] - URL to download from
+  /// [filePath] - Path where the file should be saved
+  /// [expectedSize] - Optional expected file size for validation
+  /// [resourceName] - Optional display name for progress reporting
+  /// Returns the downloaded file.
   Future<File> _downloadFile(
     String url,
     String filePath, {
@@ -179,6 +248,10 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
   }
 
+  /// Calculates the SHA1 hash of a file.
+  ///
+  /// [filePath] - Path to the file
+  /// Returns the SHA1 hash as a string.
   Future<String> _calculateSha1Hash(String filePath) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
@@ -186,6 +259,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     return digest.toString();
   }
 
+  /// Downloads game assets (textures, sounds, etc.).
   @override
   Future<void> downloadAssets() async {
     _assetsCompleter = Completer<void>();
@@ -221,6 +295,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
   }
 
+  /// Downloads required libraries for Minecraft.
   @override
   Future<void> downloadLibraries() async {
     _librariesCompleter = Completer<void>();
@@ -247,6 +322,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
   }
 
+  /// Extracts native libraries required for Minecraft.
+  ///
+  /// Returns the path to the extracted native libraries.
   @override
   Future<String> extractNativeLibraries() async {
     _nativeLibrariesCompleter = Completer<void>();
@@ -279,21 +357,34 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
   }
 
+  /// Gets the Minecraft account profile.
+  ///
+  /// Returns the Minecraft account profile if available, otherwise null.
   @override
   MinecraftAccountProfile? getAccountProfile() {
     return _minecraftAccountProfile;
   }
 
+  /// Gets the Microsoft account.
+  ///
+  /// Returns the Microsoft account if available, otherwise null.
   @override
   MicrosoftAccount? getMicrosoftAccount() {
     return _microsoftAccount;
   }
 
+  /// Gets the active profile.
+  ///
+  /// Returns the currently active profile.
   @override
   Profile getActiveProfile() {
     return _profileManager.activeProfile;
   }
 
+  /// Gets the asset index for a specific version.
+  ///
+  /// [versionId] - Minecraft version ID
+  /// Returns the asset index ID.
   @override
   Future<String> getAssetIndex(String versionId) async {
     final versionInfo = await _fetchVersionManifest(versionId);
@@ -306,26 +397,42 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     return assetIndexInfo!.id;
   }
 
+  /// Gets the game directory.
+  ///
+  /// Returns the path to the game directory.
   @override
   String getGameDir() {
     return _gameDir;
   }
 
+  /// Gets the Java arguments builder.
+  ///
+  /// Returns the current Java arguments builder.
   @override
   JavaArgumentsBuilder getJavaArgumentsBuilder() {
     return _javaArgumentsBuilder;
   }
 
+  /// Gets the Java directory.
+  ///
+  /// Returns the path to the Java directory.
   @override
   String getJavaDir() {
     return _javaDir;
   }
 
+  /// Gets the launcher profiles.
+  ///
+  /// Returns the launcher profiles configuration.
   @override
   LauncherProfiles getProfiles() {
     return _profileManager.profiles;
   }
 
+  /// Fetches the version manifest for a specific Minecraft version.
+  ///
+  /// [versionId] - Minecraft version ID
+  /// Returns the version information if available, otherwise null.
   Future<VersionInfo?> _fetchVersionManifest(String versionId) async {
     await beforeFetchVersionManifest(versionId);
 
@@ -376,10 +483,20 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
             )
             : null;
 
-    await afterFetchVersionManifest(versionId, result);
+    final resultModified = await afterFetchVersionManifest(versionId, result);
+
+    if (resultModified != null) {
+      return resultModified;
+    }
+
     return result;
   }
 
+  /// Builds the classpath for launching Minecraft.
+  ///
+  /// [versionInfo] - Version information
+  /// [versionId] - Minecraft version ID
+  /// Returns a list of paths to include in the classpath.
   Future<List<String>> _buildClasspath(
     VersionInfo versionInfo,
     String versionId,
@@ -388,10 +505,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     _activeCompleters.add(_classpathCompleter!);
 
     try {
-      await beforeBuildClasspath(versionInfo, versionId);
-      final classpath = await _classpathManager.buildClasspath(
-        versionInfo,
-        versionId,
+      final classpath = await beforeBuildClasspath(versionInfo, versionId);
+      classpath.addAll(
+        await _classpathManager.buildClasspath(versionInfo, versionId),
       );
       _classpathCompleter!.complete();
       await afterBuildClasspath(versionInfo, versionId, classpath);
@@ -402,6 +518,11 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
   }
 
+  /// Launches Minecraft.
+  ///
+  /// [onStderr] - Optional callback for stderr output
+  /// [onStdout] - Optional callback for stdout output
+  /// [onExit] - Optional callback for when the process exits
   @override
   Future<void> launch({
     JavaStderrCallback? onStderr,
@@ -535,32 +656,46 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
   }
 
+  /// Sets the active profile.
+  ///
+  /// [profile] - Profile to set as active
   @override
   void setActiveProfile(Profile profile) {
     _profileManager.activeProfile = profile;
   }
 
+  /// Sets the active profile by its ID.
+  ///
+  /// [profileId] - ID of the profile to set as active
   @override
   void setActiveProfileById(String profileId) {
     _profileManager.setActiveProfileById(profileId);
   }
 
+  /// Sets the game directory.
+  ///
+  /// [gameDir] - New game directory path
   @override
   void setGameDir(String gameDir) {
     _gameDir = gameDir;
     _profileManager.gameDir = gameDir;
   }
 
+  /// Sets the Java directory.
+  ///
+  /// [javaDir] - New Java directory path
   @override
   void setJavaDir(String javaDir) {
     _javaDir = javaDir;
   }
 
+  /// Loads launcher profiles from disk.
   @override
   Future<void> loadProfiles() async {
     await _profileManager.loadProfiles();
   }
 
+  /// Terminates the running Minecraft process.
   @override
   void terminate() {
     if (_minecraftProcessInfo != null) {
@@ -569,6 +704,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
   }
 
+  /// Downloads the Minecraft client JAR file.
   @override
   Future<void> downloadClientJar() async {
     final versionId = _profileManager.activeProfile.lastVersionId;
@@ -581,51 +717,94 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     await _classpathManager.downloadClientJar(versionInfo, versionId);
   }
 
+  /// Gets the path to the version directory.
+  ///
+  /// [versionId] - Minecraft version ID
+  /// Returns the path to the version directory.
   String _getVersionDir(String versionId) {
     return _normalizePath(p.join(_gameDir, 'versions', versionId));
   }
 
+  /// Gets the path to the version JSON file.
+  ///
+  /// [versionId] - Minecraft version ID
+  /// Returns the path to the version JSON file.
   String _getVersionJsonPath(String versionId) {
     return _normalizePath(p.join(_getVersionDir(versionId), '$versionId.json'));
   }
 
+  /// Gets the path to the client JAR file.
+  ///
+  /// [versionId] - Minecraft version ID
+  /// Returns the path to the client JAR file.
   String _getClientJarPath(String versionId) {
     return _normalizePath(p.join(_getVersionDir(versionId), '$versionId.jar'));
   }
 
+  /// Gets the path to the libraries directory.
+  ///
+  /// Returns the path to the libraries directory.
   String _getLibrariesDir() {
     return _normalizePath(p.join(_gameDir, 'libraries'));
   }
 
+  /// Gets the path to the assets directory.
+  ///
+  /// Returns the path to the assets directory.
   String _getAssetsDir() {
     return _normalizePath(p.join(_gameDir, 'assets'));
   }
 
+  /// Gets the path to the natives directory.
+  ///
+  /// [versionId] - Minecraft version ID
+  /// [libraryHash] - Hash of the library for which natives are needed
+  /// Returns the path to the natives directory.
   String _getNativesDir(String versionId, String libraryHash) {
     return _normalizePath(p.join(_gameDir, 'bin', libraryHash));
   }
 
+  /// Hook called before fetching the version manifest.
+  ///
+  /// [versionId] - Minecraft version ID
   @override
   Future<void> beforeFetchVersionManifest(String versionId) async {
     // Default implementation does nothing
   }
 
+  /// Hook called after fetching the version manifest.
+  ///
+  /// [versionId] - Minecraft version ID
+  /// [versionInfo] - The fetched version information
+  /// Returns modified version info or null if no modifications needed.
   @override
-  Future<void> afterFetchVersionManifest(
+  Future<VersionInfo?> afterFetchVersionManifest(
     String versionId,
     VersionInfo? versionInfo,
   ) async {
     // Default implementation does nothing
+    return null;
   }
 
+  /// Hook called before building the classpath.
+  ///
+  /// [versionInfo] - Version information
+  /// [versionId] - Minecraft version ID
+  /// Returns initial classpath entries.
   @override
-  Future<void> beforeBuildClasspath(
+  Future<List<String>> beforeBuildClasspath(
     dynamic versionInfo,
     String versionId,
   ) async {
     // Default implementation does nothing
+    return [];
   }
 
+  /// Hook called after building the classpath.
+  ///
+  /// [versionInfo] - Version information
+  /// [versionId] - Minecraft version ID
+  /// [classpath] - The built classpath
   @override
   Future<void> afterBuildClasspath(
     VersionInfo versionInfo,
@@ -635,11 +814,18 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     // Default implementation does nothing
   }
 
+  /// Hook called before extracting native libraries.
+  ///
+  /// [versionId] - Minecraft version ID
   @override
   Future<void> beforeExtractNativeLibraries(String versionId) async {
     // Default implementation does nothing
   }
 
+  /// Hook called after extracting native libraries.
+  ///
+  /// [versionId] - Minecraft version ID
+  /// [nativesPath] - Path to the extracted native libraries
   @override
   Future<void> afterExtractNativeLibraries(
     String versionId,
@@ -648,26 +834,46 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     // Default implementation does nothing
   }
 
+  /// Hook called before downloading assets.
+  ///
+  /// [versionId] - Minecraft version ID
   @override
   Future<void> beforeDownloadAssets(String versionId) async {
     // Default implementation does nothing
   }
 
+  /// Hook called after downloading assets.
+  ///
+  /// [versionId] - Minecraft version ID
   @override
   Future<void> afterDownloadAssets(String versionId) async {
     // Default implementation does nothing
   }
 
+  /// Hook called before downloading libraries.
+  ///
+  /// [versionId] - Minecraft version ID
   @override
   Future<void> beforeDownloadLibraries(String versionId) async {
     // Default implementation does nothing
   }
 
+  /// Hook called after downloading libraries.
+  ///
+  /// [versionId] - Minecraft version ID
   @override
   Future<void> afterDownloadLibraries(String versionId) async {
     // Default implementation does nothing
   }
 
+  /// Hook called before starting the Minecraft process.
+  ///
+  /// [javaExe] - Path to the Java executable
+  /// [javaArgs] - Java arguments for launching Minecraft
+  /// [workingDirectory] - Working directory for the process
+  /// [environment] - Environment variables for the process
+  /// [versionId] - Minecraft version ID
+  /// [auth] - Authentication information
   @override
   Future<void> beforeStartProcess(
     String javaExe,
@@ -680,6 +886,11 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     // Default implementation does nothing
   }
 
+  /// Hook called after starting the Minecraft process.
+  ///
+  /// [versionId] - Minecraft version ID
+  /// [processInfo] - Information about the started process
+  /// [auth] - Authentication information
   @override
   Future<void> afterStartProcess(
     String versionId,

@@ -1,5 +1,5 @@
 name: craft_launcher_core
-description: "A simple launcher api for Minecraft Java Edition"
+description: "A Dart package for launching Minecraft Java Edition. This library simplifies the process of managing launcher profiles, downloading game assets, and starting Minecraft instances."
 version: 0.0.3
 homepage: https://www.karasu256.com
 

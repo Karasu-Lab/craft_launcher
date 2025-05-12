@@ -6,13 +6,48 @@ import 'package:craft_launcher_core/downloaders/abstract_downloader.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+/// Handles downloading of Minecraft library files.
+///
+/// Downloads and manages Java libraries required for Minecraft to run,
+/// including the client JAR file itself.
 class LibraryDownloader extends AbstractDownloader {
+  /// Completer that tracks the overall library download operation completion.
+  ///
+  /// [_librariesCompleter]
+  /// Completes when all libraries have been downloaded successfully.
   final Completer<void> _librariesCompleter = Completer<void>();
 
+  /// Callback for reporting download progress of individual files.
+  ///
+  /// [onDownloadProgress]
+  /// Optional callback that receives progress updates during library downloads.
   final DownloadProgressCallback? onDownloadProgress;
+
+  /// Callback for reporting progress of the overall libraries download operation.
+  ///
+  /// [onOperationProgress]
+  /// Optional callback that receives progress updates for the libraries download operation.
   final OperationProgressCallback? onOperationProgress;
+
+  /// Rate at which to report download progress.
+  ///
+  /// [progressReportRate]
+  /// Controls how frequently progress updates are sent, in percentage points.
   final int progressReportRate;
 
+  /// Creates a new library downloader.
+  ///
+  /// [gameDir]
+  /// The base game directory where libraries will be stored.
+  ///
+  /// [onDownloadProgress]
+  /// Optional callback for reporting individual file download progress.
+  ///
+  /// [onOperationProgress]
+  /// Optional callback for reporting overall operation progress.
+  ///
+  /// [progressReportRate]
+  /// How often to report progress, defaults to every 10%.
   LibraryDownloader({
     required super.gameDir,
     super.onDownloadProgress,
@@ -22,7 +57,15 @@ class LibraryDownloader extends AbstractDownloader {
        onOperationProgress = null,
        progressReportRate = 10;
 
-  /// ライブラリのダウンロードを実行する
+  /// Downloads all libraries required for the specified Minecraft version.
+  ///
+  /// Iterates through the version's library list and downloads each one,
+  /// reporting progress via callbacks.
+  ///
+  /// [versionInfo]
+  /// Information about the Minecraft version whose libraries should be downloaded.
+  ///
+  /// Throws an exception if the library information is missing.
   Future<void> downloadLibraries(VersionInfo versionInfo) async {
     if (versionInfo.libraries == null) {
       throw Exception('Failed to get libraries info');
@@ -78,7 +121,6 @@ class LibraryDownloader extends AbstractDownloader {
 
         completedLibraries++;
 
-        // Report overall progress
         if (onOperationProgress != null) {
           final percentage = (completedLibraries / totalLibraries) * 100;
           final reportPercentage =
@@ -112,7 +154,18 @@ class LibraryDownloader extends AbstractDownloader {
     _librariesCompleter.complete();
   }
 
-  /// クライアントJARをダウンロードする
+  /// Downloads the main Minecraft client JAR file.
+  ///
+  /// This is the core game executable that requires the supporting libraries.
+  ///
+  /// [versionInfo]
+  /// Information about the Minecraft version to download.
+  ///
+  /// [versionId]
+  /// The version identifier string.
+  ///
+  /// Throws an exception if the client download information is missing or
+  /// if the download fails.
   Future<void> downloadClientJar(
     VersionInfo versionInfo,
     String versionId,
@@ -160,16 +213,31 @@ class LibraryDownloader extends AbstractDownloader {
     }
   }
 
-  /// クライアントJARのパスを取得する
+  /// Gets the path where the Minecraft client JAR file should be stored.
+  ///
+  /// [versionId]
+  /// The version identifier string.
+  ///
+  /// Returns the normalized absolute path to the client JAR file.
   String getClientJarPath(String versionId) {
     return normalizePath(p.join(getVersionDir(versionId), '$versionId.jar'));
   }
 
-  /// バージョンディレクトリのパスを取得する
+  /// Gets the directory where version-specific files should be stored.
+  ///
+  /// [versionId]
+  /// The version identifier string.
+  ///
+  /// Returns the normalized absolute path to the version directory.
   String getVersionDir(String versionId) {
     return normalizePath(p.join(getGameDir(), 'versions', versionId));
   }
 
-  /// ライブラリのダウンロード完了を待機する
+  /// Returns a future that completes when all libraries have been downloaded.
+  ///
+  /// Can be used to wait for the library download operation to complete or to
+  /// catch any errors that occurred during the download process.
+  ///
+  /// Returns a future that completes when the download operation is finished.
   Future<void> get completionFuture => _librariesCompleter.future;
 }
