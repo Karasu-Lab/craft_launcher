@@ -171,7 +171,8 @@ class LibraryDownloader extends AbstractDownloader {
     String versionId,
   ) async {
     if (versionInfo.downloads == null) {
-      throw Exception('Failed to get downloads info');
+      debugPrint('Client jar downloads not found. Skipping it.');
+      return;
     }
 
     final downloads = versionInfo.downloads;
