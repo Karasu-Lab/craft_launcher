@@ -40,6 +40,9 @@ abstract interface class LauncherAdapter {
     VersionInfo versionInfo,
   );
 
+  /// Hook called after getting asset index
+  Future<void> afterGetAssetIndex(String versionId, String assetIndex);
+
   /// Hook called after starting the Minecraft process
   Future<void> afterStartProcess(
     String versionId,
@@ -67,6 +70,10 @@ abstract interface class LauncherAdapter {
 
   /// Hook called before fetching version manifest
   Future<void> beforeFetchVersionManifest(String versionId);
+
+  /// Hook called before getting asset index
+  /// Returns true if the asset index retrieval should be skipped
+  Future<bool> beforeGetAssetIndex(String versionId);
 
   /// Hook called before starting the Minecraft process
   Future<void> beforeStartProcess(

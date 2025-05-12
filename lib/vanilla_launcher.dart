@@ -397,6 +397,14 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Returns the asset index ID.
   @override
   Future<String> getAssetIndex(String versionId) async {
+    final shouldSkip = await beforeGetAssetIndex(versionId);
+    if (shouldSkip) {
+      debugPrint('Asset index retrieval skipped for $versionId');
+      final defaultAssetIndex = versionId;
+      await afterGetAssetIndex(versionId, defaultAssetIndex);
+      return defaultAssetIndex;
+    }
+
     final versionInfo = await _fetchVersionManifest(versionId);
 
     if (versionInfo == null || versionInfo.assetIndex == null) {
@@ -404,7 +412,26 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
 
     final assetIndexInfo = versionInfo.assetIndex;
-    return assetIndexInfo!.id;
+    final assetIndexId = assetIndexInfo!.id;
+
+    // 後処理
+    await afterGetAssetIndex(versionId, assetIndexId);
+
+    return assetIndexId;
+  }
+
+  /// Hook called before getting asset index
+  /// Returns true if the asset index retrieval should be skipped
+  @override
+  Future<bool> beforeGetAssetIndex(String versionId) async {
+    // Default implementation does nothing
+    return false;
+  }
+
+  /// Hook called after getting asset index
+  @override
+  Future<void> afterGetAssetIndex(String versionId, String assetIndex) async {
+    // Default implementation does nothing
   }
 
   /// Gets the game directory.
