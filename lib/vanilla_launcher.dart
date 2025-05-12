@@ -708,6 +708,14 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   @override
   Future<void> downloadClientJar() async {
     final versionId = _profileManager.activeProfile.lastVersionId;
+
+    // Run before download client jar hook
+    final shouldProceed = await beforeDownloadClientJar(versionId);
+    if (!shouldProceed) {
+      debugPrint('Client JAR download was cancelled by a hook');
+      return;
+    }
+
     final versionInfo = await _fetchVersionManifest(versionId);
 
     if (versionInfo == null) {
@@ -715,6 +723,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
 
     await _classpathManager.downloadClientJar(versionInfo, versionId);
+
+    // Run after download client jar hook
+    await afterDownloadClientJar(versionId);
   }
 
   /// Gets the path to the version directory.
@@ -858,11 +869,28 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     // Default implementation does nothing
   }
 
+  /// Hook called before downloading client jar.
+  ///
+  /// [versionId] - Minecraft version ID
+  @override
+  Future<bool> beforeDownloadClientJar(String versionId) async {
+    // Default implementation always allows the download to proceed
+    return true;
+  }
+
   /// Hook called after downloading libraries.
   ///
   /// [versionId] - Minecraft version ID
   @override
   Future<void> afterDownloadLibraries(String versionId) async {
+    // Default implementation does nothing
+  }
+
+  /// Hook called after downloading client jar.
+  ///
+  /// [versionId] - Minecraft version ID
+  @override
+  Future<void> afterDownloadClientJar(String versionId) async {
     // Default implementation does nothing
   }
 

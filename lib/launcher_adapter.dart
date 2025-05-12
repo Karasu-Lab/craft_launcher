@@ -22,6 +22,9 @@ abstract interface class LauncherAdapter {
   /// Hook called after downloading assets
   Future<void> afterDownloadAssets(String versionId);
 
+  /// Hook called after downloading client jar
+  Future<void> afterDownloadClientJar(String versionId);
+
   /// Hook called after downloading libraries
   Future<void> afterDownloadLibraries(String versionId);
 
@@ -52,6 +55,9 @@ abstract interface class LauncherAdapter {
 
   /// Hook called before downloading assets
   Future<void> beforeDownloadAssets(String versionId);
+
+  /// Hook called before downloading client jar
+  Future<bool> beforeDownloadClientJar(String versionId);
 
   /// Hook called before downloading libraries
   Future<void> beforeDownloadLibraries(String versionId);
