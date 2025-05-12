@@ -285,7 +285,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     try {
       final versionId = _profileManager.activeProfile.lastVersionId;
       await beforeDownloadAssets(versionId);
-      final versionInfo = await _fetchVersionManifest(versionId);
+      final versionInfo = await fetchVersionManifest(versionId);
 
       if (versionInfo == null) {
         throw Exception('Failed to get version info for $versionId');
@@ -314,7 +314,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     try {
       final versionId = _profileManager.activeProfile.lastVersionId;
       await beforeDownloadLibraries(versionId);
-      final versionInfo = await _fetchVersionManifest(versionId);
+      final versionInfo = await fetchVersionManifest(versionId);
 
       if (versionInfo == null) {
         throw Exception('Failed to get version info for $versionId');
@@ -342,7 +342,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
 
     final versionId = _profileManager.activeProfile.lastVersionId;
     await beforeExtractNativeLibraries(versionId);
-    final versionInfo = await _fetchVersionManifest(versionId);
+    final versionInfo = await fetchVersionManifest(versionId);
 
     if (versionInfo == null || versionInfo.libraries == null) {
       throw Exception('Failed to get libraries info for $versionId');
@@ -405,7 +405,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
       return defaultAssetIndex;
     }
 
-    final versionInfo = await _fetchVersionManifest(versionId);
+    final versionInfo = await fetchVersionManifest(versionId);
 
     if (versionInfo == null || versionInfo.assetIndex == null) {
       throw Exception('Failed to get asset index info for $versionId');
@@ -414,7 +414,6 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     final assetIndexInfo = versionInfo.assetIndex;
     final assetIndexId = assetIndexInfo!.id;
 
-    // 後処理
     await afterGetAssetIndex(versionId, assetIndexId);
 
     return assetIndexId;
@@ -470,7 +469,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   ///
   /// [versionId] - Minecraft version ID
   /// Returns the version information if available, otherwise null.
-  Future<VersionInfo?> _fetchVersionManifest(String versionId) async {
+  Future<VersionInfo?> fetchVersionManifest(String versionId) async {
     await beforeFetchVersionManifest(versionId);
 
     final versionJsonPath = _getVersionJsonPath(versionId);
@@ -572,7 +571,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     await downloadLibraries();
 
     final versionId = _profileManager.activeProfile.lastVersionId;
-    final versionInfo = await _fetchVersionManifest(versionId);
+    final versionInfo = await fetchVersionManifest(versionId);
 
     if (versionInfo == null) {
       throw Exception('Failed to get version info for $versionId');
@@ -753,7 +752,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
       return;
     }
 
-    final versionInfo = await _fetchVersionManifest(versionId);
+    final versionInfo = await fetchVersionManifest(versionId);
 
     if (versionInfo == null) {
       throw Exception('Failed to get version info for $versionId');
@@ -968,5 +967,14 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   @override
   bool isModded() {
     return false;
+  }
+  
+  /// Retrieves basic version information for a Minecraft version.
+  /// 
+  /// [versionId] - Minecraft version ID
+  /// Returns the basic version information if available, otherwise null.
+  @override
+  Future<VersionInfo?> getVersionInfo(String versionId) async {
+    return await fetchVersionManifest(versionId);
   }
 }
