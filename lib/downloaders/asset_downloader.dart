@@ -75,8 +75,26 @@ class AssetDownloader extends AbstractDownloader {
     VersionInfo versionInfo, {
     VersionInfo? inheritsFrom,
   }) async {
-    if (versionInfo.assetIndex == null && inheritsFrom == null) {
+    if (versionInfo.assetIndex == null && inheritsFrom?.assetIndex == null) {
       throw Exception('Failed to get asset index info');
+    }
+
+    // Use inheritsFrom if provided and has valid assetIndex, otherwise use versionInfo
+    final targetVersionInfo =
+        (inheritsFrom != null && inheritsFrom.assetIndex != null)
+            ? inheritsFrom
+            : versionInfo;
+
+    await _downloadAssets(targetVersionInfo);
+  }
+
+  /// Internal implementation of asset downloading for a specific version.
+  ///
+  /// [versionInfo]
+  /// The version info containing asset index information.
+  Future<void> _downloadAssets(VersionInfo versionInfo) async {
+    if (versionInfo.assetIndex == null) {
+      throw Exception('Version info has no asset index');
     }
 
     final assetsDir = getAssetsDir();
@@ -86,11 +104,10 @@ class AssetDownloader extends AbstractDownloader {
     await ensureDirectory(indexesDir);
     await ensureDirectory(objectsDir);
 
-    final assetIndexInfo = versionInfo.assetIndex;
+    final assetIndexInfo = versionInfo.assetIndex!;
 
-    final indexId =
-        inheritsFrom?.id ?? assetIndexInfo!.id as String? ?? 'legacy';
-    final indexUrl = assetIndexInfo!.url;
+    final indexId = assetIndexInfo.id as String? ?? 'legacy';
+    final indexUrl = assetIndexInfo.url;
 
     final indexPath = normalizePath(p.join(indexesDir, '$indexId.json'));
 
@@ -107,7 +124,7 @@ class AssetDownloader extends AbstractDownloader {
       final totalAssets = objects.length;
 
       if (_onDownloadProgress != null) {
-        _onDownloadProgress(operationName, 0, totalAssets, 0);
+        _onDownloadProgress!(operationName, 0, totalAssets, 0);
       }
 
       int completedAssets = 0;
@@ -133,7 +150,7 @@ class AssetDownloader extends AbstractDownloader {
 
           completedAssets++;
 
-          if (_onDownloadProgress != null) {
+          if (_onOperationProgress != null) {
             final percentage = (completedAssets / totalAssets) * 100;
             final reportPercentage =
                 (percentage ~/ _progressReportRate) * _progressReportRate;
@@ -154,7 +171,7 @@ class AssetDownloader extends AbstractDownloader {
       }
 
       if (_onOperationProgress != null) {
-        _onOperationProgress(operationName, totalAssets, totalAssets, 100.0);
+        _onOperationProgress!(operationName, totalAssets, totalAssets, 100.0);
       }
 
       _assetsCompleter.complete();
