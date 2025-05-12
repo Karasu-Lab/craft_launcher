@@ -1,6 +1,6 @@
 name: craft_launcher_core
 description: "A simple launcher api for Minecraft Java Edition"
-version: 0.0.2
+version: 0.0.3
 homepage: https://www.karasu256.com
 
 environment:
