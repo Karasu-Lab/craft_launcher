@@ -87,7 +87,9 @@ class AssetDownloader extends AbstractDownloader {
     await ensureDirectory(objectsDir);
 
     final assetIndexInfo = versionInfo.assetIndex;
-    final indexId = inheritsFrom ?? assetIndexInfo!.id as String? ?? 'legacy';
+
+    final indexId =
+        inheritsFrom?.id ?? assetIndexInfo!.id as String? ?? 'legacy';
     final indexUrl = assetIndexInfo!.url;
 
     final indexPath = normalizePath(p.join(indexesDir, '$indexId.json'));
