@@ -69,6 +69,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Directory where game files are stored.
   String _gameDir;
 
+  /// A getter of gameDir;
+  String get gameDir => _gameDir;
+
   /// Directory where Java is installed.
   String _javaDir;
 
