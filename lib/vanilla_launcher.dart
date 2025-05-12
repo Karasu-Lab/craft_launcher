@@ -36,6 +36,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   final OperationProgressCallback? _onOperationProgress;
   final int _progressReportRate;
 
+  final String _launcherName;
+  final String _launcherVersion;
+
   JavaExitCallback? onExit;
   String _gameDir;
   String _javaDir;
@@ -58,6 +61,8 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     DownloadProgressCallback? onDownloadProgress,
     OperationProgressCallback? onOperationProgress,
     int progressReportRate = 10,
+    String launcherName = 'CraftLauncher',
+    String launcherVersion = '1.0.0',
   }) : _gameDir = gameDir,
        _javaDir = javaDir,
        _minecraftAccountProfile = minecraftAccountProfile,
@@ -66,7 +71,12 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
        _onDownloadProgress = onDownloadProgress,
        _onOperationProgress = onOperationProgress,
        _progressReportRate = progressReportRate,
-       _javaArgumentsBuilder = JavaArgumentsBuilder(),
+       _launcherName = launcherName,
+       _launcherVersion = launcherVersion,
+       _javaArgumentsBuilder = JavaArgumentsBuilder(
+         launcherName: launcherName,
+         launcherVersion: launcherVersion,
+       ),
        _classpathManager = ClasspathManager(
          gameDir: gameDir,
          onDownloadProgress: onDownloadProgress,
@@ -429,6 +439,8 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
         .setClientJar(_getClientJarPath(versionId))
         .setMainClass(mainClass)
         .setAssetsIndexName(versionInfo.assetIndex?.id ?? versionInfo.id)
+        .setLauncherName(_launcherName)
+        .setLauncherVersion(_launcherVersion)
         .addGameArguments(versionInfo.arguments);
 
     if (versionInfo.minecraftArguments != null) {

@@ -1,16 +1,3 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
-
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
-
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
-
 # Craft Launcher Core
 
 A Dart package for launching Minecraft Java Edition. This library simplifies the process of managing launcher profiles, downloading game assets, and starting Minecraft instances.
@@ -23,6 +10,7 @@ A Dart package for launching Minecraft Java Edition. This library simplifies the
 - Profile configuration and customization
 - Launch with Microsoft authentication support
 - Extensible launcher adapter system
+- Customizable launcher branding
 
 ## Getting started
 
@@ -74,6 +62,9 @@ final launcher = VanillaLauncher(
   onOperationProgress: (operation, completed, total, percentage) {
     print('$operation: $percentage%');
   },
+  // カスタムランチャー名とバージョンを設定（任意）
+  launcherName: 'MyCustomLauncher',
+  launcherVersion: '2.0.0',
 );
 
 // Launch the game
@@ -121,6 +112,10 @@ final launcher = VanillaLauncher(
     accessToken: authService.minecraftToken,
     userType: 'msa',
   ),
+  
+  // カスタムランチャーブランディング設定（任意）
+  launcherName: 'MyAuthenticatedLauncher',
+  launcherVersion: '1.5.2',
 );
 
 // Launch with authentication
@@ -128,8 +123,6 @@ await launcher.launch();
 ```
 
 ### Creating a Custom Launcher Adapter
-
-You can extend the launcher functionality by implementing a custom adapter:
 
 ```dart
 import 'package:craft_launcher_core/launcher_adapter.dart';
@@ -179,6 +172,10 @@ class ModdedLauncherAdapter implements LauncherAdapter {
 - Dart SDK 3.7.2 or higher
 - Java Runtime Environment (JRE) or Java Development Kit (JDK) for running Minecraft
 - Internet connection for downloading game assets and libraries
+
+### Customization Options
+
+- **Launcher Branding**: Customize the launcher name and version that appears in Minecraft by setting the `launcherName` and `launcherVersion` parameters in the `VanillaLauncher` constructor. If not specified, the default values "CraftLauncher" and "1.0.0" will be used.
 
 ### Contributing
 

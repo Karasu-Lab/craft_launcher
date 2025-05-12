@@ -17,7 +17,6 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
   Arguments? _arguments;
   String? _minecraftArguments;
 
-  // 追加のフィールド
   String? _assetsIndexName;
   String? _authPlayerName;
   String? _authUuid;
@@ -40,11 +39,15 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
   int _width = 854;
   int _height = 480;
 
-  // クイックプレイパス
   String? _quickPlayPath;
   String? _quickPlaySingleplayer;
   String? _quickPlayMultiplayer;
   String? _quickPlayRealms;
+
+  JavaArgumentsBuilder({String? launcherName, String? launcherVersion}) {
+    _launcherName = launcherName ?? 'CraftLauncher';
+    _launcherVersion = launcherVersion ?? '1.0.0';
+  }
 
   @override
   JavaArgumentsBuilder setGameDir(String gameDir) {
