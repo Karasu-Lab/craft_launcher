@@ -33,11 +33,10 @@ abstract interface class LauncherAdapter {
     String versionId,
     String nativesPath,
   );
-
   /// Hook called after fetching version manifest
-  Future<void> afterFetchVersionManifest(
+  Future<T?> afterFetchVersionManifest<T extends VersionInfo>(
     String versionId,
-    VersionInfo versionInfo,
+    T? versionInfo,
   );
 
   /// Hook called after getting asset index
@@ -73,7 +72,10 @@ abstract interface class LauncherAdapter {
 
   /// Hook called before getting asset index
   /// Returns true if the asset index retrieval should be skipped
-  Future<bool> beforeGetAssetIndex(String versionId);
+  Future<bool> beforeGetAssetIndex<T extends VersionInfo>(
+    String versionId,
+    T versionInfo,
+  );
 
   /// Hook called before starting the Minecraft process
   Future<void> beforeStartProcess(

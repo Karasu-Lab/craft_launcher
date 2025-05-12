@@ -397,7 +397,11 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Returns the asset index ID.
   @override
   Future<String> getAssetIndex(String versionId) async {
-    final shouldSkip = await beforeGetAssetIndex(versionId);
+    final shouldSkip = await beforeGetAssetIndex(
+      versionId,
+      (await getVersionInfo(versionId)) ??
+          (throw Exception('VersionInfo is null for versionId: $versionId')),
+    );
     if (shouldSkip) {
       debugPrint('Asset index retrieval skipped for $versionId');
       final defaultAssetIndex = versionId;
@@ -422,7 +426,10 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Hook called before getting asset index
   /// Returns true if the asset index retrieval should be skipped
   @override
-  Future<bool> beforeGetAssetIndex(String versionId) async {
+  Future<bool> beforeGetAssetIndex<T extends VersionInfo>(
+    String versionId,
+    T versionInfo,
+  ) async {
     // Default implementation does nothing
     return false;
   }
@@ -469,7 +476,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   ///
   /// [versionId] - Minecraft version ID
   /// Returns the version information if available, otherwise null.
-  Future<VersionInfo?> fetchVersionManifest(String versionId) async {
+  Future<T?> fetchVersionManifest<T extends VersionInfo>(
+    String versionId,
+  ) async {
     await beforeFetchVersionManifest(versionId);
 
     final versionJsonPath = _getVersionJsonPath(versionId);
@@ -477,7 +486,8 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
 
     if (await versionJsonFile.exists()) {
       final content = await versionJsonFile.readAsString();
-      return VersionInfo.fromJson(json.decode(content));
+      final jsonData = json.decode(content);
+      return _createVersionInfoInstance<T>(jsonData);
     }
 
     try {
@@ -502,7 +512,8 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
               versionJsonPath,
             );
             final content = await versionFile.readAsString();
-            return VersionInfo.fromJson(json.decode(content));
+            final jsonData = json.decode(content);
+            return _createVersionInfoInstance<T>(jsonData);
           } catch (e) {
             debugPrint('Error downloading version JSON: $e');
           }
@@ -512,14 +523,17 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
       debugPrint('Error fetching version info: $e');
     }
 
-    final result =
-        await versionJsonFile.exists()
-            ? VersionInfo.fromJson(
-              json.decode(await versionJsonFile.readAsString()),
-            )
-            : null;
+    T? result;
+    if (await versionJsonFile.exists()) {
+      final content = await versionJsonFile.readAsString();
+      final jsonData = json.decode(content);
+      result = _createVersionInfoInstance<T>(jsonData);
+    }
 
-    final resultModified = await afterFetchVersionManifest(versionId, result);
+    final resultModified = await afterFetchVersionManifest<T>(
+      versionId,
+      result,
+    );
 
     if (resultModified != null) {
       return resultModified;
@@ -825,9 +839,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// [versionInfo] - The fetched version information
   /// Returns modified version info or null if no modifications needed.
   @override
-  Future<VersionInfo?> afterFetchVersionManifest(
+  Future<T?> afterFetchVersionManifest<T extends VersionInfo>(
     String versionId,
-    VersionInfo? versionInfo,
+    T? versionInfo,
   ) async {
     // Default implementation does nothing
     return null;
@@ -968,13 +982,20 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   bool isModded() {
     return false;
   }
-  
+
   /// Retrieves basic version information for a Minecraft version.
-  /// 
+  ///
   /// [versionId] - Minecraft version ID
   /// Returns the basic version information if available, otherwise null.
   @override
-  Future<VersionInfo?> getVersionInfo(String versionId) async {
+  Future<T?> getVersionInfo<T extends VersionInfo>(String versionId) async {
     return await fetchVersionManifest(versionId);
+  }
+
+  /// Create a versioninfo instance
+  T _createVersionInfoInstance<T extends VersionInfo>(
+    Map<String, dynamic> json,
+  ) {
+    return VersionInfo.fromJson(json) as T;
   }
 }

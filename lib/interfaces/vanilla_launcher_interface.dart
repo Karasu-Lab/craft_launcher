@@ -97,8 +97,8 @@ abstract interface class VanillaLauncherInterface {
   void terminate();
 
   /// Retrieves basic version information for a Minecraft version.
-  /// 
+  ///
   /// [versionId] - Minecraft version ID
   /// Returns the basic version information if available, otherwise null.
-  Future<VersionInfo?> getVersionInfo(String versionId);
+  Future<T?> getVersionInfo<T extends VersionInfo>(String versionId);
 }
