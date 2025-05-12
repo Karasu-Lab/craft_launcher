@@ -475,11 +475,15 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Fetches the version manifest for a specific Minecraft version.
   ///
   /// [versionId] - Minecraft version ID
+  /// [skipPatch] - Skip patch
   /// Returns the version information if available, otherwise null.
   Future<T?> fetchVersionManifest<T extends VersionInfo>(
-    String versionId,
-  ) async {
-    await beforeFetchVersionManifest(versionId);
+    String versionId, {
+    bool skipPatch = false,
+  }) async {
+    if (!skipPatch) {
+      await beforeFetchVersionManifest(versionId);
+    }
 
     final versionJsonPath = _getVersionJsonPath(versionId);
     final versionJsonFile = File(versionJsonPath);
@@ -530,13 +534,15 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
       result = _createVersionInfoInstance<T>(jsonData);
     }
 
-    final resultModified = await afterFetchVersionManifest<T>(
-      versionId,
-      result,
-    );
+    if (!skipPatch) {
+      final resultModified = await afterFetchVersionManifest<T>(
+        versionId,
+        result,
+      );
 
-    if (resultModified != null) {
-      return resultModified;
+      if (resultModified != null) {
+        return resultModified;
+      }
     }
 
     return result;
@@ -989,7 +995,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Returns the basic version information if available, otherwise null.
   @override
   Future<T?> getVersionInfo<T extends VersionInfo>(String versionId) async {
-    return await fetchVersionManifest(versionId);
+    return await fetchVersionManifest(versionId, skipPatch: true);
   }
 
   /// Create a versioninfo instance
