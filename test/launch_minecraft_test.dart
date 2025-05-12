@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'dart:async';
-import 'package:craft_launcher_core/env/env.dart';
-import 'package:craft_launcher_core/models/models.dart';
+// import 'package:craft_launcher_core/env/env.dart';
+// import 'package:craft_launcher_core/models/models.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:craft_launcher_core/vanilla_launcher.dart';
 import 'package:craft_launcher_core/models/launcher_profiles.dart';
-import 'package:mcid_connect/mcid_connect.dart';
+// import 'package:mcid_connect/mcid_connect.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -23,7 +23,7 @@ void main() {
     type: 'latest-release',
     created: DateTime.now().toIso8601String(),
     lastUsed: DateTime.now().toIso8601String(),
-    lastVersionId: '1.21.5',
+    lastVersionId: '1.21.3',
   );
 
   final testProfiles = LauncherProfiles(
@@ -64,16 +64,16 @@ void main() {
     }
 
     try {
-      final clientId = Env.azureAppClientId;
-      final authService = AuthService(
-        clientId: clientId,
-        redirectUri: 'http://localhost:3000',
-        scopes: ['XboxLive.signin', 'offline_access'],
-        onGetDeviceCode: (deviceCodeResponse) {
-          debugPrint('Please visit: ${deviceCodeResponse.verificationUri}');
-          debugPrint('And enter this code: ${deviceCodeResponse.userCode}');
-        },
-      );
+      // final clientId = Env.azureAppClientId;
+      // final authService = AuthService(
+      //   clientId: clientId,
+      //   redirectUri: 'http://localhost:3000',
+      //   scopes: ['XboxLive.signin', 'offline_access'],
+      //   onGetDeviceCode: (deviceCodeResponse) {
+      //     debugPrint('Please visit: ${deviceCodeResponse.verificationUri}');
+      //     debugPrint('And enter this code: ${deviceCodeResponse.userCode}');
+      //   },
+      // );
 
       // await authService.startAuthenticationFlow();
 

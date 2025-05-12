@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:craft_launcher_core/java_arguments_builder.dart';
+import 'package:craft_launcher_core/java_arguments/java_arguments_builder.dart';
 import 'package:craft_launcher_core/models/launcher_profiles.dart';
 import 'package:mcid_connect/data/auth/auth_models.dart';
 import 'package:mcid_connect/data/profile/account_profile.dart';

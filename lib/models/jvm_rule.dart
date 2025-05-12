@@ -6,7 +6,7 @@ part 'jvm_rule.g.dart';
 class JvmRule {
   final List<JvmRuleCondition> rules;
   final dynamic value;
-  
+
   @JsonKey(includeFromJson: false, includeToJson: false)
   List<String>? values;
 
@@ -23,11 +23,11 @@ class JvmRule {
               .toList(),
       value: json['value'],
     );
-    
+
     if (rule.value is List) {
       rule.values = (rule.value as List).map((v) => v.toString()).toList();
     }
-    
+
     return rule;
   }
 
