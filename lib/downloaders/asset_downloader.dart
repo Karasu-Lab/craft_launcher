@@ -124,7 +124,7 @@ class AssetDownloader extends AbstractDownloader {
       final totalAssets = objects.length;
 
       if (_onDownloadProgress != null) {
-        _onDownloadProgress!(operationName, 0, totalAssets, 0);
+        _onDownloadProgress(operationName, 0, totalAssets, 0);
       }
 
       int completedAssets = 0;
@@ -157,7 +157,7 @@ class AssetDownloader extends AbstractDownloader {
 
             if (reportPercentage > lastReportedPercentage) {
               lastReportedPercentage = reportPercentage;
-              _onOperationProgress!(
+              _onOperationProgress(
                 operationName,
                 completedAssets,
                 totalAssets,
@@ -171,7 +171,7 @@ class AssetDownloader extends AbstractDownloader {
       }
 
       if (_onOperationProgress != null) {
-        _onOperationProgress!(operationName, totalAssets, totalAssets, 100.0);
+        _onOperationProgress(operationName, totalAssets, totalAssets, 100.0);
       }
 
       _assetsCompleter.complete();
