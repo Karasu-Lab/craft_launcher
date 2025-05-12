@@ -65,7 +65,7 @@ abstract interface class VanillaLauncherInterface {
   );
 
   /// Download assets from https://resources.download.minecraft.net.
-  Future<void> downloadAssets();
+  Future<void> downloadAssets<T extends VersionInfo>(T versionInfo);
 
   /// Download libraries from https://libraries.minecraft.net.
   Future<void> downloadLibraries();

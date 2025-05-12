@@ -278,24 +278,19 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
 
   /// Downloads game assets (textures, sounds, etc.).
   @override
-  Future<void> downloadAssets() async {
+  Future<void> downloadAssets<T extends VersionInfo>(T versionInfo) async {
     _assetsCompleter = Completer<void>();
     _activeCompleters.add(_assetsCompleter!);
 
     try {
-      final versionId = _profileManager.activeProfile.lastVersionId;
-      await beforeDownloadAssets(versionId);
-      final versionInfo = await fetchVersionManifest(versionId);
-
-      if (versionInfo == null) {
-        throw Exception('Failed to get version info for $versionId');
-      }
-
-      await assetDownloader.downloadAssets(versionInfo);
+      await assetDownloader.downloadAssets(
+        versionInfo,
+        versionId: versionInfo.inheritsFrom,
+      );
       await assetDownloader.completionFuture;
 
       _assetsCompleter!.complete();
-      await afterDownloadAssets(versionId);
+      await afterDownloadAssets(versionInfo.id);
     } catch (e) {
       debugPrint('Error downloading assets: $e');
       _assetsCompleter!.completeError(
@@ -587,15 +582,15 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   }) async {
     _activeCompleters = [];
 
-    await downloadAssets();
-    await downloadLibraries();
-
     final versionId = _profileManager.activeProfile.lastVersionId;
     final versionInfo = await fetchVersionManifest(versionId);
 
     if (versionInfo == null) {
       throw Exception('Failed to get version info for $versionId');
     }
+
+    await downloadAssets(versionInfo);
+    await downloadLibraries();
 
     final nativesPath = await extractNativeLibraries();
     debugPrint('Using natives directory: $nativesPath');

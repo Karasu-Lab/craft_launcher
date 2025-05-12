@@ -66,9 +66,15 @@ class AssetDownloader extends AbstractDownloader {
   /// [versionInfo]
   /// Information about the Minecraft version whose assets should be downloaded.
   ///
+  /// [versionId]
+  /// Optional ID of the version to download. If not provided, uses the ID from versionInfo.
+  ///
   /// Throws an exception if the asset index is missing or if any part of the
   /// download process fails.
-  Future<void> downloadAssets(VersionInfo versionInfo) async {
+  Future<void> downloadAssets(
+    VersionInfo versionInfo, {
+    String? versionId,
+  }) async {
     if (versionInfo.assetIndex == null) {
       throw Exception('Failed to get asset index info');
     }
@@ -81,8 +87,8 @@ class AssetDownloader extends AbstractDownloader {
     await ensureDirectory(objectsDir);
 
     final assetIndexInfo = versionInfo.assetIndex;
-    final indexId = assetIndexInfo!.id as String? ?? 'legacy';
-    final indexUrl = assetIndexInfo.url;
+    final indexId = versionId ?? assetIndexInfo!.id as String? ?? 'legacy';
+    final indexUrl = assetIndexInfo!.url;
 
     final indexPath = normalizePath(p.join(indexesDir, '$indexId.json'));
 

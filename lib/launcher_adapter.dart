@@ -88,7 +88,7 @@ abstract interface class LauncherAdapter {
   );
 
   /// Download assets from https://resources.download.minecraft.net.
-  Future<void> downloadAssets();
+  Future<void> downloadAssets<T extends VersionInfo>(T versionInfo);
 
   /// Download client jar from Mojang servers
   Future<void> downloadClientJar();
