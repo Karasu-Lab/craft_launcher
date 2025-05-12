@@ -15,6 +15,7 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
   String? _mainClass;
   String? _additionalArgs;
   Arguments? _arguments;
+  String? _minecraftArguments;
 
   // 追加のフィールド
   String? _assetsIndexName;
@@ -143,6 +144,13 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     return this;
   }
 
+  JavaArgumentsBuilder setMinecraftArguments(String minecraftArguments) {
+    _minecraftArguments = minecraftArguments;
+    return this;
+  }
+
+  String? getMinecraftArguments() => _minecraftArguments;
+
   // フラグ設定メソッド
   JavaArgumentsBuilder setDemoUser(bool isDemo) {
     _featureFlags['is_demo_user'] = isDemo;
@@ -225,11 +233,16 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
       args.add('-Djava.library.path=$_nativesDir');
     }
 
-    if (_arguments?.jvm != null) {
-      args.addAll(_processArguments(_arguments!.jvm!, ArgumentType.jvm));
-    }
-    if (_arguments?.game != null) {
-      args.addAll(_processArguments(_arguments!.game!, ArgumentType.game));
+    if (_minecraftArguments != null) {
+      args.addAll(_processLegacyArguments(_minecraftArguments!));
+    } else {
+      if (_arguments?.jvm != null) {
+        args.addAll(_processArguments(_arguments!.jvm!, ArgumentType.jvm));
+      }
+
+      if (_arguments?.game != null) {
+        args.addAll(_processArguments(_arguments!.game!, ArgumentType.game));
+      }
     }
 
     return args.join(' ');
@@ -452,6 +465,78 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
               }
             }
           }
+        }
+      }
+    }
+
+    return processedArgs;
+  }
+
+  List<String> _processLegacyArguments(String arguments) {
+    final List<String> processedArgs = [];
+    final List<String> argParts = arguments.split(' ');
+
+    // 変数名と対応する値のマッピング - 旧形式のMinecraft引数用
+    final Map<String, String?> variableMap = {
+      'version_name': _version,
+      'version_type': 'release', // デフォルト値
+      'game_directory': _gameDir,
+      'assets_root': _gameDir != null ? '$_gameDir/assets' : null,
+      'assets_index_name': _assetsIndexName,
+      'auth_player_name': _authPlayerName,
+      'auth_uuid': _authUuid,
+      'auth_access_token': _authAccessToken,
+      'user_type': _userType ?? 'legacy',
+      'resolution_width': _width.toString(),
+      'resolution_height': _height.toString(),
+    };
+
+    // オプション引数の先頭パターンリスト
+    final List<String> optionPrefixes = ['--', '-', '-D'];
+
+    for (int i = 0; i < argParts.length; i++) {
+      var arg = argParts[i];
+      
+      // 引数の処理
+      if (arg.startsWith('--') && i + 1 < argParts.length) {
+        String nextArg = argParts[i + 1];
+        
+        // 次の引数が変数プレースホルダーの場合
+        if (nextArg.startsWith('\${') && nextArg.endsWith('}')) {
+          // 変数名を抽出
+          final varName = nextArg.substring(2, nextArg.length - 1);
+          final value = variableMap[varName];
+          
+          // 値が存在する場合のみ引数を追加
+          if (value != null) {
+            processedArgs.add(arg);
+            processedArgs.add(value);
+          }
+          // 次の引数は既に処理したのでスキップ
+          i++;
+        } else {
+          // 通常の引数の場合はそのまま追加
+          processedArgs.add(arg);
+          // 次の引数がオプションでなければ値として追加
+          if (i + 1 < argParts.length && !argParts[i + 1].startsWith('--')) {
+            processedArgs.add(argParts[i + 1]);
+            i++;
+          }
+        }
+      } else {
+        // オプション以外の引数はそのまま追加
+        String processedArg = arg;
+        
+        // 変数置換を適用
+        variableMap.forEach((key, value) {
+          if (value != null) {
+            processedArg = _replaceWithRegex(processedArg, '\${$key}', value);
+          }
+        });
+        
+        // 変数が置換された場合のみ追加
+        if (!processedArg.contains('\${')) {
+          processedArgs.add(processedArg);
         }
       }
     }

@@ -925,6 +925,12 @@ class VanillaLauncher implements VanillaLauncherInterface {
         .setAssetsIndexName(versionInfo.assetIndex?.id ?? versionInfo.id)
         .addGameArguments(versionInfo.arguments);
 
+    if (versionInfo.minecraftArguments != null) {
+      _javaArgumentsBuilder.setMinecraftArguments(
+        versionInfo.minecraftArguments!,
+      );
+    }
+
     if (_minecraftAuth != null) {
       debugPrint('Using authenticated account: ${_minecraftAuth.userName}');
       _javaArgumentsBuilder
