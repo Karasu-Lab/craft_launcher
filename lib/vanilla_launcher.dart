@@ -278,14 +278,20 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
 
   /// Downloads game assets (textures, sounds, etc.).
   @override
-  Future<void> downloadAssets<T extends VersionInfo>(T versionInfo) async {
+  Future<void> downloadAssets<T extends VersionInfo>(
+    T versionInfo, {
+    String? inheritsFrom,
+  }) async {
     _assetsCompleter = Completer<void>();
     _activeCompleters.add(_assetsCompleter!);
 
     try {
       await assetDownloader.downloadAssets(
         versionInfo,
-        inheritsFrom: await fetchVersionManifest(versionInfo.inheritsFrom!),
+        inheritsFrom:
+            inheritsFrom != null
+                ? await fetchVersionManifest(inheritsFrom)
+                : null,
       );
       await assetDownloader.completionFuture;
 
@@ -589,7 +595,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
       throw Exception('Failed to get version info for $versionId');
     }
 
-    await downloadAssets(versionInfo);
+    await downloadAssets(versionInfo, inheritsFrom: versionInfo.inheritsFrom);
     await downloadLibraries();
 
     final nativesPath = await extractNativeLibraries();
