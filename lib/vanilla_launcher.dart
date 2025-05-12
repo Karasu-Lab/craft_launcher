@@ -285,7 +285,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     try {
       await assetDownloader.downloadAssets(
         versionInfo,
-        versionId: versionInfo.inheritsFrom,
+        inheritsFrom: await fetchVersionManifest(versionInfo.inheritsFrom!),
       );
       await assetDownloader.completionFuture;
 
