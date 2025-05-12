@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:craft_launcher_core/craft_launcher_core.dart';
 import 'package:craft_launcher_core/java_arguments/java_arguments_builder.dart';
 import 'package:craft_launcher_core/models/launcher_profiles.dart';
+import 'package:craft_launcher_core/processes/process_manager.dart';
 import 'package:mcid_connect/data/auth/auth_models.dart';
 import 'package:mcid_connect/data/profile/account_profile.dart';
 
@@ -51,7 +53,16 @@ abstract interface class VanillaLauncherInterface {
   MicrosoftAccount? getMicrosoftAccount();
 
   /// Extract native libraries.
-  Future<void> extractNativeLibraries();
+  Future<String> extractNativeLibraries();
+
+  /// Hook called before extracting native libraries
+  Future<void> beforeExtractNativeLibraries(String versionId);
+
+  /// Hook called after extracting native libraries
+  Future<void> afterExtractNativeLibraries(
+    String versionId,
+    String nativesPath,
+  );
 
   /// Download assets from https://resources.download.minecraft.net.
   Future<void> downloadAssets();
@@ -59,7 +70,22 @@ abstract interface class VanillaLauncherInterface {
   /// Download libraries from https://libraries.minecraft.net.
   Future<void> downloadLibraries();
 
-  Future<void> downloadClientJar();
+  /// Hook called before starting the Minecraft process
+  Future<void> beforeStartProcess(
+    String javaExe,
+    List<String> javaArgs,
+    String workingDirectory,
+    Map<String, String> environment,
+    String versionId,
+    MinecraftAuth? auth,
+  );
+
+  /// Hook called after starting the Minecraft process
+  Future<void> afterStartProcess(
+    String versionId,
+    MinecraftProcessInfo processInfo,
+    MinecraftAuth? auth,
+  );
 
   /// Launch the game.
   Future<void> launch({

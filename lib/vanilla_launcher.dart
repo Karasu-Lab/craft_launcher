@@ -9,6 +9,7 @@ import 'package:craft_launcher_core/downloaders/asset_downloader.dart';
 import 'package:craft_launcher_core/interfaces/vanilla_launcher_interface.dart';
 import 'package:craft_launcher_core/java_arguments/classpath_manager.dart';
 import 'package:craft_launcher_core/java_arguments/java_arguments_builder.dart';
+import 'package:craft_launcher_core/launcher_adapter.dart';
 import 'package:craft_launcher_core/models/launcher_profiles.dart';
 import 'package:craft_launcher_core/processes/process_manager.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +20,7 @@ import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:craft_launcher_core/environments/environment_manager.dart';
 
-class VanillaLauncher implements VanillaLauncherInterface {
+class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   final JavaArgumentsBuilder _javaArgumentsBuilder;
 
   final MinecraftAccountProfile? _minecraftAccountProfile;
@@ -168,30 +169,6 @@ class VanillaLauncher implements VanillaLauncherInterface {
     }
   }
 
-  String _getVersionDir(String versionId) {
-    return _normalizePath(p.join(_gameDir, 'versions', versionId));
-  }
-
-  String _getVersionJsonPath(String versionId) {
-    return _normalizePath(p.join(_getVersionDir(versionId), '$versionId.json'));
-  }
-
-  String _getClientJarPath(String versionId) {
-    return _normalizePath(p.join(_getVersionDir(versionId), '$versionId.jar'));
-  }
-
-  String _getLibrariesDir() {
-    return _normalizePath(p.join(_gameDir, 'libraries'));
-  }
-
-  String _getAssetsDir() {
-    return _normalizePath(p.join(_gameDir, 'assets'));
-  }
-
-  String _getNativesDir(String versionId, String libraryHash) {
-    return _normalizePath(p.join(_gameDir, 'bin', libraryHash));
-  }
-
   Future<String> _calculateSha1Hash(String filePath) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
@@ -206,6 +183,7 @@ class VanillaLauncher implements VanillaLauncherInterface {
 
     try {
       final versionId = _profileManager.activeProfile.lastVersionId;
+      await beforeDownloadAssets(versionId);
       final versionInfo = await _fetchVersionManifest(versionId);
 
       if (versionInfo == null) {
@@ -223,6 +201,7 @@ class VanillaLauncher implements VanillaLauncherInterface {
       await assetDownloader.completionFuture;
 
       _assetsCompleter!.complete();
+      await afterDownloadAssets(versionId);
     } catch (e) {
       debugPrint('Error downloading assets: $e');
       _assetsCompleter!.completeError(
@@ -239,6 +218,7 @@ class VanillaLauncher implements VanillaLauncherInterface {
 
     try {
       final versionId = _profileManager.activeProfile.lastVersionId;
+      await beforeDownloadLibraries(versionId);
       final versionInfo = await _fetchVersionManifest(versionId);
 
       if (versionInfo == null) {
@@ -247,6 +227,7 @@ class VanillaLauncher implements VanillaLauncherInterface {
 
       await _classpathManager.downloadLibraries(versionInfo);
       _librariesCompleter!.complete();
+      await afterDownloadLibraries(versionId);
     } catch (e) {
       debugPrint('Error downloading libraries: $e');
       _librariesCompleter!.completeError(
@@ -262,6 +243,7 @@ class VanillaLauncher implements VanillaLauncherInterface {
     _activeCompleters.add(_nativeLibrariesCompleter!);
 
     final versionId = _profileManager.activeProfile.lastVersionId;
+    await beforeExtractNativeLibraries(versionId);
     final versionInfo = await _fetchVersionManifest(versionId);
 
     if (versionInfo == null || versionInfo.libraries == null) {
@@ -279,6 +261,7 @@ class VanillaLauncher implements VanillaLauncherInterface {
       );
 
       _nativeLibrariesCompleter!.complete();
+      await afterExtractNativeLibraries(versionId, resultNativesDir);
       return resultNativesDir;
     } catch (e) {
       _nativeLibrariesCompleter!.completeError(e);
@@ -334,6 +317,8 @@ class VanillaLauncher implements VanillaLauncherInterface {
   }
 
   Future<VersionInfo?> _fetchVersionManifest(String versionId) async {
+    await beforeFetchVersionManifest(versionId);
+
     final versionJsonPath = _getVersionJsonPath(versionId);
     final versionJsonFile = File(versionJsonPath);
 
@@ -374,7 +359,15 @@ class VanillaLauncher implements VanillaLauncherInterface {
       debugPrint('Error fetching version info: $e');
     }
 
-    return null;
+    final result =
+        await versionJsonFile.exists()
+            ? VersionInfo.fromJson(
+              json.decode(await versionJsonFile.readAsString()),
+            )
+            : null;
+
+    await afterFetchVersionManifest(versionId, result);
+    return result;
   }
 
   Future<List<String>> _buildClasspath(
@@ -385,11 +378,13 @@ class VanillaLauncher implements VanillaLauncherInterface {
     _activeCompleters.add(_classpathCompleter!);
 
     try {
+      await beforeBuildClasspath(versionInfo, versionId);
       final classpath = await _classpathManager.buildClasspath(
         versionInfo,
         versionId,
       );
       _classpathCompleter!.complete();
+      await afterBuildClasspath(versionInfo, versionId, classpath);
       return classpath;
     } catch (e) {
       _classpathCompleter!.completeError(e);
@@ -484,6 +479,15 @@ class VanillaLauncher implements VanillaLauncherInterface {
       debugPrint('Java arguments:');
       debugPrint(javaArgs.join(' '));
 
+      await beforeStartProcess(
+        javaExe,
+        javaArgs,
+        EnvironmentManager.normalizePath(_gameDir),
+        environment,
+        versionId,
+        _minecraftAuth,
+      );
+
       _minecraftProcessInfo = await _processManager.startProcess(
         javaExe: javaExe,
         javaArgs: javaArgs,
@@ -502,6 +506,12 @@ class VanillaLauncher implements VanillaLauncherInterface {
           }
           _minecraftProcessInfo = null;
         },
+      );
+
+      await afterStartProcess(
+        versionId,
+        _minecraftProcessInfo!,
+        _minecraftAuth,
       );
 
       debugPrint(
@@ -557,5 +567,113 @@ class VanillaLauncher implements VanillaLauncherInterface {
     }
 
     await _classpathManager.downloadClientJar(versionInfo, versionId);
+  }
+
+  String _getVersionDir(String versionId) {
+    return _normalizePath(p.join(_gameDir, 'versions', versionId));
+  }
+
+  String _getVersionJsonPath(String versionId) {
+    return _normalizePath(p.join(_getVersionDir(versionId), '$versionId.json'));
+  }
+
+  String _getClientJarPath(String versionId) {
+    return _normalizePath(p.join(_getVersionDir(versionId), '$versionId.jar'));
+  }
+
+  String _getLibrariesDir() {
+    return _normalizePath(p.join(_gameDir, 'libraries'));
+  }
+
+  String _getAssetsDir() {
+    return _normalizePath(p.join(_gameDir, 'assets'));
+  }
+
+  String _getNativesDir(String versionId, String libraryHash) {
+    return _normalizePath(p.join(_gameDir, 'bin', libraryHash));
+  }
+
+  @override
+  Future<void> beforeFetchVersionManifest(String versionId) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> afterFetchVersionManifest(
+    String versionId,
+    VersionInfo? versionInfo,
+  ) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> beforeBuildClasspath(
+    dynamic versionInfo,
+    String versionId,
+  ) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> afterBuildClasspath(
+    VersionInfo versionInfo,
+    String versionId,
+    List<String> classpath,
+  ) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> beforeExtractNativeLibraries(String versionId) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> afterExtractNativeLibraries(
+    String versionId,
+    String nativesPath,
+  ) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> beforeDownloadAssets(String versionId) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> afterDownloadAssets(String versionId) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> beforeDownloadLibraries(String versionId) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> afterDownloadLibraries(String versionId) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> beforeStartProcess(
+    String javaExe,
+    List<String> javaArgs,
+    String workingDirectory,
+    Map<String, String> environment,
+    String versionId,
+    MinecraftAuth? auth,
+  ) async {
+    // Default implementation does nothing
+  }
+
+  @override
+  Future<void> afterStartProcess(
+    String versionId,
+    MinecraftProcessInfo processInfo,
+    MinecraftAuth? auth,
+  ) async {
+    // Default implementation does nothing
   }
 }
