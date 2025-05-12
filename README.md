@@ -62,7 +62,6 @@ final launcher = VanillaLauncher(
   onOperationProgress: (operation, completed, total, percentage) {
     print('$operation: $percentage%');
   },
-  // カスタムランチャー名とバージョンを設定（任意）
   launcherName: 'MyCustomLauncher',
   launcherVersion: '2.0.0',
 );
@@ -113,7 +112,6 @@ final launcher = VanillaLauncher(
     userType: 'msa',
   ),
   
-  // カスタムランチャーブランディング設定（任意）
   launcherName: 'MyAuthenticatedLauncher',
   launcherVersion: '1.5.2',
 );
