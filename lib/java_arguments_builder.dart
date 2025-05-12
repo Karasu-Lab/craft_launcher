@@ -215,12 +215,14 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
 
     args.add(_mainClass!);
 
-    if (_nativesDir != null) {
-      args.add('-Djava.library.path=$_nativesDir');
-    }
-
     if (_additionalArgs != null && _additionalArgs!.isNotEmpty) {
       args.addAll(_additionalArgs!.split(' '));
+    }
+
+    args.add('-Dorg.lwjgl.util.DebugLoader=true');
+
+    if (_nativesDir != null) {
+      args.add('-Djava.library.path=$_nativesDir');
     }
 
     if (_arguments?.jvm != null) {

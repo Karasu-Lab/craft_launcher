@@ -14,7 +14,7 @@ void main() {
 
   final String javaDir =
       Platform.isWindows
-          ? 'C:\\Program Files\\Java\\jdk-21\\'
+          ? 'C:\\Program Files\\Java\\jdk-17.0.5\\'
           : '/usr/bin/java';
 
   final testProfile = Profile(
@@ -23,7 +23,7 @@ void main() {
     type: 'latest-release',
     created: DateTime.now().toIso8601String(),
     lastUsed: DateTime.now().toIso8601String(),
-    lastVersionId: '1.21.5',
+    lastVersionId: '1.16.5',
   );
 
   final testProfiles = LauncherProfiles(
@@ -75,7 +75,7 @@ void main() {
         },
       );
 
-      await authService.startAuthenticationFlow();
+      // await authService.startAuthenticationFlow();
 
       final launcher = VanillaLauncher(
         gameDir: gameDir,
@@ -87,14 +87,14 @@ void main() {
             'Operation: $operation, Completed: $completed, Total: $total, Percentage: $percentage',
           );
         },
-        minecraftAuth: MinecraftAuth(
-          clientId: clientId,
-          authXuid: authService.xstsUhs,
-          userName: authService.minecraftProfile.name,
-          uuid: authService.minecraftProfile.id,
-          accessToken: authService.minecraftToken,
-          userType: 'msa',
-        ),
+        // minecraftAuth: MinecraftAuth(
+        //   clientId: clientId,
+        //   authXuid: authService.xstsUhs,
+        //   userName: authService.minecraftProfile.name,
+        //   uuid: authService.minecraftProfile.id,
+        //   accessToken: authService.minecraftToken,
+        //   userType: 'msa',
+        // ),
       );
 
       final completer = Completer<void>();

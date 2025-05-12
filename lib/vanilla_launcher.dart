@@ -1,17 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:async';
 
+import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:craft_launcher_core/craft_launcher_core.dart';
 import 'package:craft_launcher_core/interfaces/vanilla_launcher_interface.dart';
 import 'package:craft_launcher_core/java_arguments_builder.dart';
 import 'package:craft_launcher_core/models/launcher_profiles.dart';
-import 'package:craft_launcher_core/models/progress_callback.dart';
 import 'package:flutter/material.dart';
 import 'package:mcid_connect/data/auth/microsoft/microsoft_account.dart';
 import 'package:mcid_connect/data/profile/minecraft_account_profile.dart';
 import 'package:path/path.dart' as p;
 import 'package:http/http.dart' as http;
+import 'package:crypto/crypto.dart';
 
 class VanillaLauncher implements VanillaLauncherInterface {
   final JavaArgumentsBuilder _javaArgumentsBuilder;
@@ -28,6 +32,12 @@ class VanillaLauncher implements VanillaLauncherInterface {
   final DownloadProgressCallback? _onDownloadProgress;
   final OperationProgressCallback? _onOperationProgress;
   final int _progressReportRate;
+
+  Completer<void>? _nativeLibrariesCompleter;
+  Completer<void>? _classpathCompleter;
+  Completer<void>? _assetsCompleter;
+  Completer<void>? _librariesCompleter;
+  List<Completer<void>> _activeCompleters = [];
 
   VanillaLauncher({
     required String gameDir,
@@ -158,12 +168,22 @@ class VanillaLauncher implements VanillaLauncherInterface {
     return _normalizePath(p.join(_gameDir, 'assets'));
   }
 
-  String _getNativesDir(String versionId) {
-    return _normalizePath(p.join(_gameDir, 'natives', versionId));
+  String _getNativesDir(String versionId, String libraryHash) {
+    return _normalizePath(p.join(_gameDir, 'bin', libraryHash));
+  }
+
+  Future<String> _calculateSha1Hash(String filePath) async {
+    final file = File(filePath);
+    final bytes = await file.readAsBytes();
+    final digest = sha1.convert(bytes);
+    return digest.toString();
   }
 
   @override
   Future<void> downloadAssets() async {
+    _assetsCompleter = Completer<void>();
+    _activeCompleters.add(_assetsCompleter!);
+
     if (_activeProfile == null) {
       throw Exception('No active profile selected');
     }
@@ -251,14 +271,22 @@ class VanillaLauncher implements VanillaLauncherInterface {
       if (_onOperationProgress != null) {
         _onOperationProgress(operationName, totalAssets, totalAssets, 100.0);
       }
+
+      _assetsCompleter!.complete();
     } catch (e) {
       debugPrint('Error processing asset index: $e');
+      _assetsCompleter!.completeError(
+        Exception('Failed to process asset index: $e'),
+      );
       throw Exception('Failed to process asset index: $e');
     }
   }
 
   @override
   Future<void> downloadLibraries() async {
+    _librariesCompleter = Completer<void>();
+    _activeCompleters.add(_librariesCompleter!);
+
     if (_activeProfile == null) {
       throw Exception('No active profile selected');
     }
@@ -350,30 +378,43 @@ class VanillaLauncher implements VanillaLauncherInterface {
         100.0,
       );
     }
+
+    _librariesCompleter!.complete();
   }
 
   @override
-  Future<void> extractNativeLibraries() async {
+  Future<String> extractNativeLibraries() async {
+    _nativeLibrariesCompleter = Completer<void>();
+    _activeCompleters.add(_nativeLibrariesCompleter!);
+
     if (_activeProfile == null) {
       throw Exception('No active profile selected');
     }
 
     final versionId = _activeProfile!.lastVersionId;
     final versionInfo = await _fetchVersionManifest(versionId);
+    String resultNativesDir = '';
 
     if (versionInfo == null || versionInfo.libraries == null) {
       throw Exception('Failed to get libraries info for $versionId');
     }
 
-    final libraries = versionInfo.libraries as List<dynamic>;
-    final nativesDir = _getNativesDir(versionId);
-    await _ensureDirectory(nativesDir);
+    final libraries = versionInfo.libraries!;
+    final operationName = 'Extracting native libraries';
+    List<String> nativeExtensions = [];
+    if (Platform.isWindows) {
+      nativeExtensions = ['.dll', '.dll.x86', '.dll.x64'];
+    } else if (Platform.isMacOS) {
+      nativeExtensions = ['.dylib', '.jnilib', '.so'];
+    } else if (Platform.isLinux) {
+      nativeExtensions = ['.so'];
+    }
 
-    final librariesDir = _getLibrariesDir();
+    int totalLibraries = 0;
+    List<Library> nativeLibraries = [];
 
+    // すべてのネイティブライブラリを取得
     for (final library in libraries) {
-      if (library is! Library) continue;
-
       final downloads = library.downloads;
       if (downloads == null) continue;
 
@@ -382,51 +423,263 @@ class VanillaLauncher implements VanillaLauncherInterface {
 
       String? nativeKey;
       if (Platform.isWindows) {
-        if (classifiers.containsKey('natives-windows')) {
-          nativeKey = 'natives-windows';
-        }
+        nativeKey = 'natives-windows';
       } else if (Platform.isMacOS) {
-        if (classifiers.containsKey('natives-macos')) {
-          nativeKey = 'natives-macos';
-        } else if (classifiers.containsKey('natives-osx')) {
-          nativeKey = 'natives-osx';
-        }
+        nativeKey =
+            classifiers.containsKey('natives-macos')
+                ? 'natives-macos'
+                : 'natives-osx';
       } else if (Platform.isLinux) {
-        if (classifiers.containsKey('natives-linux')) {
+        nativeKey = 'natives-linux';
+      }
+
+      if (nativeKey != null && classifiers.containsKey(nativeKey)) {
+        nativeLibraries.add(library);
+        totalLibraries++;
+      }
+    }
+
+    if (_onOperationProgress != null) {
+      _onOperationProgress(operationName, 0, totalLibraries, 0);
+    }
+
+    // 一時作業ディレクトリを作成
+    final tempDir = await Directory.systemTemp.createTemp('mc_natives_');
+    try {
+      // 抽出されたネイティブファイルを保持
+      List<File> allExtractedNativeFiles = [];
+      int processedLibraries = 0;
+      int lastReportedPercentage = 0;
+
+      // 各ネイティブライブラリを処理
+      for (final library in nativeLibraries) {
+        final downloads = library.downloads!;
+        final classifiers = downloads.classifiers!;
+
+        String? nativeKey;
+        if (Platform.isWindows) {
+          nativeKey = 'natives-windows';
+        } else if (Platform.isMacOS) {
+          nativeKey =
+              classifiers.containsKey('natives-macos')
+                  ? 'natives-macos'
+                  : 'natives-osx';
+        } else if (Platform.isLinux) {
           nativeKey = 'natives-linux';
         }
-      }
 
-      if (nativeKey == null) continue;
+        final nativeArtifact = classifiers[nativeKey];
+        if (nativeArtifact == null) continue;
 
-      final nativeArtifact = classifiers[nativeKey];
-      if (nativeArtifact == null) continue;
+        final path = nativeArtifact.path;
+        if (path == null) continue;
 
-      final path = nativeArtifact.path;
-      if (path == null) continue;
+        final librariesDir = _getLibrariesDir();
+        final nativeJar = _normalizePath(p.join(librariesDir, path));
 
-      final nativeJar = _normalizePath(p.join(librariesDir, path));
-      if (!await File(nativeJar).exists()) continue;
-
-      try {
-        final archive = await Process.run('jar', [
-          'xf',
-          nativeJar,
-        ], workingDirectory: nativesDir);
-        if (archive.exitCode != 0) {
+        // JARファイルが存在しない場合はダウンロード
+        if (!await File(nativeJar).exists()) {
           debugPrint(
-            'Failed to extract natives from $nativeJar: ${archive.stderr}',
+            'Native JAR file not found, attempting to download: $nativeJar',
           );
+          try {
+            await downloadLibraries();
+          } catch (e) {
+            debugPrint('Error downloading libraries: $e');
+          }
+
+          // ダウンロード後も存在しない場合はURLから直接ダウンロード試行
+          if (!await File(nativeJar).exists() && nativeArtifact.url != null) {
+            debugPrint(
+              'Attempting direct download of native library: ${nativeArtifact.url}',
+            );
+            try {
+              await _downloadFile(
+                nativeArtifact.url!,
+                nativeJar,
+                expectedSize: nativeArtifact.size,
+                resourceName: p.basename(nativeJar),
+              );
+            } catch (e) {
+              debugPrint('Direct download failed: $e');
+            }
+          }
+
+          // それでも存在しない場合はスキップ
+          if (!await File(nativeJar).exists()) {
+            debugPrint('Failed to download native library, skipping: $path');
+            processedLibraries++;
+            continue;
+          }
         }
+
+        try {
+          // JARファイルを読み込み
+          final nativeJarFile = File(nativeJar);
+          final jarBytes = await nativeJarFile.readAsBytes();
+          final archive = ZipDecoder().decodeBytes(jarBytes);
+
+          // プラットフォームに適したネイティブライブラリを抽出して一時フォルダに保存
+          for (final file in archive) {
+            if (file.isFile) {
+              final fileName = p.basename(file.name);
+              final fileExt = p.extension(fileName).toLowerCase();
+
+              // 環境に適したファイルかチェック
+              bool isValidForPlatform = false;
+              if (Platform.isWindows) {
+                isValidForPlatform = nativeExtensions.any(
+                  (ext) => fileName.toLowerCase().endsWith(ext),
+                );
+              } else if (Platform.isMacOS) {
+                isValidForPlatform = nativeExtensions.contains(fileExt);
+              } else if (Platform.isLinux) {
+                isValidForPlatform = fileExt == '.so';
+              }
+
+              if (isValidForPlatform) {
+                final tempFilePath = p.join(
+                  tempDir.path,
+                  'extracted',
+                  fileName,
+                );
+                final tempFileDir = Directory(p.dirname(tempFilePath));
+                if (!await tempFileDir.exists()) {
+                  await tempFileDir.create(recursive: true);
+                }
+
+                // ファイルの内容を一時ファイルに書き込む
+                final data = file.content;
+                final tempFile = await File(
+                  tempFilePath,
+                ).create(recursive: true);
+                await tempFile.writeAsBytes(Uint8List.fromList(data));
+                allExtractedNativeFiles.add(tempFile);
+                debugPrint('Extracted native library: $fileName');
+              }
+            }
+          }
+
+          processedLibraries++;
+
+          // 進捗状況の報告
+          if (_onOperationProgress != null && totalLibraries > 0) {
+            final percentage = (processedLibraries / totalLibraries) * 100;
+            final reportPercentage =
+                (percentage ~/ _progressReportRate) * _progressReportRate;
+
+            if (reportPercentage > lastReportedPercentage) {
+              lastReportedPercentage = reportPercentage;
+              _onOperationProgress(
+                operationName,
+                processedLibraries,
+                totalLibraries,
+                max(0.0, min(percentage, 100.0)),
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('Error extracting natives from $nativeJar: $e');
+          processedLibraries++;
+        }
+      }
+
+      // 全てのネイティブライブラリをZIPにまとめる
+      if (allExtractedNativeFiles.isNotEmpty) {
+        final collectionZipPath = p.join(
+          tempDir.path,
+          'natives_collection.zip',
+        );
+        final collectionZipEncoder = ZipFileEncoder();
+
+        try {
+          collectionZipEncoder.create(collectionZipPath);
+
+          for (final file in allExtractedNativeFiles) {
+            final fileName = p.basename(file.path);
+            collectionZipEncoder.addFile(file, fileName);
+            debugPrint('Added to collection ZIP: $fileName');
+          }
+
+          collectionZipEncoder.close();
+
+          // ZIPファイルのハッシュを計算
+          final zipHash = await _calculateSha1Hash(collectionZipPath);
+          resultNativesDir = _getNativesDir(versionId, zipHash);
+
+          // 既に同じハッシュのディレクトリがある場合は再利用
+          if (await Directory(resultNativesDir).exists()) {
+            debugPrint('Using existing natives directory with hash: $zipHash');
+          } else {
+            // 新しいディレクトリを作成して展開
+            await _ensureDirectory(resultNativesDir);
+
+            // 抽出したファイルを最終的な場所にコピー
+            for (final file in allExtractedNativeFiles) {
+              final fileName = p.basename(file.path);
+              final targetPath = p.join(resultNativesDir, fileName);
+
+              try {
+                await file.copy(targetPath);
+              } catch (e) {
+                debugPrint('Failed to copy native library $fileName: $e');
+                if (await File(targetPath).exists()) {
+                  await File(targetPath).delete();
+                  await file.copy(targetPath);
+                }
+              }
+            }
+
+            debugPrint('Created new natives directory: $resultNativesDir');
+          }
+
+          // 結果の検証
+          final extractedFiles =
+              await Directory(resultNativesDir).list().toList();
+          debugPrint('Final native libraries count: ${extractedFiles.length}');
+        } catch (e) {
+          debugPrint('Error creating natives collection: $e');
+        }
+      }
+
+      // ネイティブライブラリディレクトリが作成されなかった場合のフォールバック
+      if (resultNativesDir.isEmpty) {
+        debugPrint('No natives directory created, using default');
+        resultNativesDir = _getNativesDir(versionId, 'default');
+        await _ensureDirectory(resultNativesDir);
+      }
+    } finally {
+      // 一時ディレクトリを削除
+      try {
+        await tempDir.delete(recursive: true);
+        debugPrint('Temporary directory cleaned up');
       } catch (e) {
-        debugPrint('Error extracting natives: $e');
+        debugPrint('Failed to clean up temporary directory: $e');
       }
     }
 
-    final metaInfDir = p.join(nativesDir, 'META-INF');
+    // META-INFディレクトリを削除（必要な場合）
+    final metaInfDir = p.join(resultNativesDir, 'META-INF');
     if (await Directory(metaInfDir).exists()) {
-      await Directory(metaInfDir).delete(recursive: true);
+      try {
+        await Directory(metaInfDir).delete(recursive: true);
+        debugPrint('Removed META-INF directory from natives folder');
+      } catch (e) {
+        debugPrint('Failed to remove META-INF directory: $e');
+      }
     }
+
+    if (_onOperationProgress != null) {
+      _onOperationProgress(
+        operationName,
+        totalLibraries,
+        totalLibraries,
+        100.0,
+      );
+    }
+
+    _nativeLibrariesCompleter!.complete();
+    return resultNativesDir;
   }
 
   @override
@@ -526,32 +779,12 @@ class VanillaLauncher implements VanillaLauncherInterface {
     return null;
   }
 
-  @override
-  Future<void> launch({
-    JavaStderrCallback? onStderr,
-    JavaStdoutCallback? onStdout,
-    JavaExitCallback? onExit,
-  }) async {
-    if (_activeProfile == null) {
-      throw Exception('No active profile selected');
-    }
-
-    await downloadAssets();
-    await downloadLibraries();
-    await extractNativeLibraries();
-
-    final versionId = _activeProfile!.lastVersionId;
-    final versionInfo = await _fetchVersionManifest(versionId);
-
-    if (versionInfo == null) {
-      throw Exception('Failed to get version info for $versionId');
-    }
-
-    final nativesDir = _getNativesDir(versionId);
-    await _ensureDirectory(nativesDir);
-
-    debugPrint('Extracting native libraries to: $nativesDir');
-    await extractNativeLibraries();
+  Future<List<String>> _buildClasspath(
+    VersionInfo versionInfo,
+    String versionId,
+  ) async {
+    _classpathCompleter = Completer<void>();
+    _activeCompleters.add(_classpathCompleter!);
 
     final librariesDir = _getLibrariesDir();
     final clientJarPath = _getClientJarPath(versionId);
@@ -641,25 +874,57 @@ class VanillaLauncher implements VanillaLauncherInterface {
     if (missingLibraries > 0) {
       debugPrint('Warning: $missingLibraries library files not found');
     }
+
+    debugPrint('Number of JAR files in classpath: ${classpath.length}');
+    _classpathCompleter!.complete();
+
+    return classpath;
+  }
+
+  @override
+  Future<void> launch({
+    JavaStderrCallback? onStderr,
+    JavaStdoutCallback? onStdout,
+    JavaExitCallback? onExit,
+  }) async {
+    if (_activeProfile == null) {
+      throw Exception('No active profile selected');
+    }
+
+    _activeCompleters = [];
+
+    await downloadAssets();
+    await downloadLibraries();
+
+    final versionId = _activeProfile!.lastVersionId;
+    final versionInfo = await _fetchVersionManifest(versionId);
+
+    if (versionInfo == null) {
+      throw Exception('Failed to get version info for $versionId');
+    }
+
+    // ネイティブライブラリを展開し、使用するディレクトリパスを取得
+    final nativesPath = await extractNativeLibraries();
+    debugPrint('Using natives directory: $nativesPath');
+
+    final classpath = await _buildClasspath(versionInfo, versionId);
+
     final mainClass = versionInfo.mainClass;
     if (mainClass == null) {
       throw Exception('Main class not found in version info');
     }
     debugPrint('Main class: $mainClass');
-    debugPrint('Number of JAR files in classpath: ${classpath.length}');
 
-    // Build Java arguments using JavaArgumentsBuilder
     _javaArgumentsBuilder
         .setGameDir(_normalizePath(_gameDir))
         .setVersion(versionInfo.id)
         .addClassPaths(classpath)
-        .setNativesDir(nativesDir)
-        .setClientJar(clientJarPath)
+        .setNativesDir(nativesPath)
+        .setClientJar(_getClientJarPath(versionId))
         .setMainClass(mainClass)
         .setAssetsIndexName(versionInfo.assetIndex?.id ?? versionInfo.id)
         .addGameArguments(versionInfo.arguments);
 
-    // Set authentication information
     if (_minecraftAuth != null) {
       debugPrint('Using authenticated account: ${_minecraftAuth.userName}');
       _javaArgumentsBuilder
@@ -681,13 +946,11 @@ class VanillaLauncher implements VanillaLauncherInterface {
           .setUserType('msa');
     }
 
-    // Add Java arguments from profile
     if (_activeProfile!.javaArgs != null &&
         _activeProfile!.javaArgs!.isNotEmpty) {
       _javaArgumentsBuilder.addAdditionalArguments(_activeProfile!.javaArgs);
     }
 
-    // Get built arguments
     final javaArgsString = _javaArgumentsBuilder.build();
     final javaArgs = javaArgsString.split(' ');
 
@@ -699,6 +962,10 @@ class VanillaLauncher implements VanillaLauncherInterface {
     debugPrint(javaArgs.join(' '));
 
     try {
+      for (final completer in _activeCompleters) {
+        await completer.future;
+      }
+
       _minecraftProcess = await Process.start(
         javaExe,
         javaArgs,
