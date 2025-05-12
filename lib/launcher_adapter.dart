@@ -45,7 +45,10 @@ abstract interface class LauncherAdapter {
   );
 
   /// Hook called before building classpath
-  Future<List<String>> beforeBuildClasspath(VersionInfo versionInfo, String versionId);
+  Future<List<String>> beforeBuildClasspath(
+    VersionInfo versionInfo,
+    String versionId,
+  );
 
   /// Hook called before downloading assets
   Future<void> beforeDownloadAssets(String versionId);
@@ -129,4 +132,7 @@ abstract interface class LauncherAdapter {
 
   /// Terminate the running Minecraft process
   void terminate();
+
+  /// Get the launcher is modded
+  bool isModded();
 }

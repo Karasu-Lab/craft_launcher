@@ -29,64 +29,64 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
 
   /// Profile information for the Minecraft account.
   final MinecraftAccountProfile? _minecraftAccountProfile;
-  
+
   /// Microsoft account information for authentication.
   final MicrosoftAccount? _microsoftAccount;
-  
+
   /// Minecraft authentication details.
   final MinecraftAuth? _minecraftAuth;
 
   /// Manager for handling launcher profiles.
   final ProfileManager _profileManager;
-  
+
   /// Manager for building classpath for Minecraft.
   final ClasspathManager _classpathManager;
-  
+
   /// Manager for handling archive extraction and native libraries.
   final ArchivesManager _archivesManager;
-  
+
   /// Manager for handling Minecraft process.
   final ProcessManager _processManager = ProcessManager();
 
   /// Callback for reporting download progress.
   final DownloadProgressCallback? _onDownloadProgress;
-  
+
   /// Callback for reporting operation progress.
   final OperationProgressCallback? _onOperationProgress;
-  
+
   /// Rate at which progress updates are reported (in percentage points).
   final int _progressReportRate;
 
   /// Name of the launcher.
   final String _launcherName;
-  
+
   /// Version of the launcher.
   final String _launcherVersion;
 
   /// Callback triggered when the Java process exits.
   JavaExitCallback? onExit;
-  
+
   /// Directory where game files are stored.
   String _gameDir;
-  
+
   /// Directory where Java is installed.
   String _javaDir;
-  
+
   /// Information about the currently running Minecraft process.
   MinecraftProcessInfo? _minecraftProcessInfo;
 
   /// Completer for tracking native libraries extraction completion.
   Completer<void>? _nativeLibrariesCompleter;
-  
+
   /// Completer for tracking classpath building completion.
   Completer<void>? _classpathCompleter;
-  
+
   /// Completer for tracking assets download completion.
   Completer<void>? _assetsCompleter;
-  
+
   /// Completer for tracking libraries download completion.
   Completer<void>? _librariesCompleter;
-  
+
   /// List of active completers for tracking ongoing operations.
   List<Completer<void>> _activeCompleters = [];
 
@@ -898,5 +898,10 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     MinecraftAuth? auth,
   ) async {
     // Default implementation does nothing
+  }
+
+  @override
+  bool isModded() {
+    return false;
   }
 }
