@@ -33,6 +33,7 @@ abstract interface class LauncherAdapter {
     String versionId,
     String nativesPath,
   );
+
   /// Hook called after fetching version manifest
   Future<T?> afterFetchVersionManifest<T extends VersionInfo>(
     String versionId,
@@ -49,23 +50,26 @@ abstract interface class LauncherAdapter {
     MinecraftAuth? auth,
   );
 
-  /// Hook called before building classpath
+  /// Hook called ae building classpath
   Future<List<String>> beforeBuildClasspath(
     VersionInfo versionInfo,
     String versionId,
   );
 
   /// Hook called before downloading assets
-  Future<void> beforeDownloadAssets(String versionId);
+  /// Returns true if the download should proceed, false to skip
+  Future<bool> beforeDownloadAssets(String versionId);
 
   /// Hook called before downloading client jar
   Future<bool> beforeDownloadClientJar(String versionId);
 
   /// Hook called before downloading libraries
-  Future<void> beforeDownloadLibraries(String versionId);
+  /// Returns true if the download should proceed, false to skip
+  Future<bool> beforeDownloadLibraries(String versionId);
 
   /// Hook called before extracting native libraries
-  Future<void> beforeExtractNativeLibraries(String versionId);
+  /// Returns true if the extraction should proceed, false to skip
+  Future<bool> beforeExtractNativeLibraries(String versionId);
 
   /// Hook called before fetching version manifest
   Future<void> beforeFetchVersionManifest(String versionId);
@@ -86,6 +90,24 @@ abstract interface class LauncherAdapter {
     String versionId,
     MinecraftAuth? auth,
   );
+
+  /// Hook called before building Java arguments
+  /// This allows customization of the JavaArgumentsBuilder before arguments are built
+  ///
+  /// [versionId] - Minecraft version ID
+  /// [builder] - JavaArgumentsBuilder instance that can be customized
+  /// [versionInfo] - VersionInfo instance containing version information
+  Future<Arguments?> beforeBuildJavaArguments(
+    String versionId,
+    JavaArgumentsBuilder builder,
+    VersionInfo versionInfo,
+  );
+
+  /// Hook called after building Java arguments
+  ///
+  /// [versionId] - Minecraft version ID
+  /// [arguments] - The built Java arguments string
+  Future<String> afterBuildJavaArguments(String versionId, String arguments);
 
   /// Download assets from https://resources.download.minecraft.net.
   Future<void> downloadAssets<T extends VersionInfo>(T versionInfo);
@@ -150,4 +172,12 @@ abstract interface class LauncherAdapter {
 
   /// Get the launcher is modded
   bool isModded();
+
+  /// Get custom asset index path to override default path
+  /// Return null to use the default path
+  String? getCustomAssetIndexPath(String versionId, String assetIndex);
+
+  /// Get custom assets directory path to override default path
+  /// Return null to use the default directory
+  String? getCustomAssetsDirectory();
 }

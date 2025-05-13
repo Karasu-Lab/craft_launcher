@@ -98,6 +98,12 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// List of active completers for tracking ongoing operations.
   List<Completer<void>> _activeCompleters = [];
 
+  /// カスタムアセットインデックスパス
+  String? _customAssetIndexPath;
+
+  /// カスタムアセットディレクトリ
+  String? _customAssetsDirectory;
+
   /// Creates a new VanillaLauncher instance.
   ///
   /// [gameDir] - Directory where the game files are stored
@@ -286,6 +292,16 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     _activeCompleters.add(_assetsCompleter!);
 
     try {
+      final shouldSkip = await beforeDownloadAssets(versionInfo.id);
+      if (shouldSkip) {
+        debugPrint(
+          'Skipping asset download as requested by beforeDownloadAssets',
+        );
+        _assetsCompleter!.complete();
+        await afterDownloadAssets(versionInfo.id);
+        return;
+      }
+
       await assetDownloader.downloadAssets(
         versionInfo,
         inheritsFrom:
@@ -575,6 +591,27 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
   }
 
+  /// Hook called before building Java arguments
+  @override
+  Future<Arguments?> beforeBuildJavaArguments(
+    String versionId,
+    JavaArgumentsBuilder builder,
+    VersionInfo versionInfo,
+  ) async {
+    // Default implementation does nothing
+    return null;
+  }
+
+  /// Hook called after building Java arguments
+  @override
+  Future<String> afterBuildJavaArguments(
+    String versionId,
+    String arguments,
+  ) async {
+    // Default implementation just returns the original arguments
+    return arguments;
+  }
+
   /// Launches Minecraft.
   ///
   /// [onStderr] - Optional callback for stderr output
@@ -609,6 +646,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
     }
     debugPrint('Main class: $mainClass');
 
+    final assetIndexName = await getAssetIndex(versionId);
+    debugPrint('Using asset index: $assetIndexName');
+
     _javaArgumentsBuilder
         .setGameDir(_normalizePath(_gameDir))
         .setVersion(versionInfo.id)
@@ -616,10 +656,24 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
         .setNativesDir(nativesPath)
         .setClientJar(_getClientJarPath(versionId))
         .setMainClass(mainClass)
-        .setAssetsIndexName(versionInfo.assetIndex?.id ?? versionInfo.id)
+        .setAssetsIndexName(assetIndexName)
         .setLauncherName(_launcherName)
         .setLauncherVersion(_launcherVersion)
         .addGameArguments(versionInfo.arguments);
+
+    final customAssetIndexPath = getCustomAssetIndexPath(
+      versionId,
+      assetIndexName,
+    );
+    final customAssetsDirectory = getCustomAssetsDirectory();
+
+    if (customAssetIndexPath != null) {
+      _javaArgumentsBuilder.setCustomAssetIndexPath(customAssetIndexPath);
+    }
+
+    if (customAssetsDirectory != null) {
+      _javaArgumentsBuilder.setCustomAssetsDirectory(customAssetsDirectory);
+    }
 
     if (versionInfo.minecraftArguments != null) {
       _javaArgumentsBuilder.setMinecraftArguments(
@@ -653,7 +707,23 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
       _javaArgumentsBuilder.addAdditionalArguments(activeProfile.javaArgs);
     }
 
-    final javaArgsString = _javaArgumentsBuilder.build();
+    final customArguments = await beforeBuildJavaArguments(
+      versionId,
+      _javaArgumentsBuilder,
+      versionInfo,
+    );
+
+    if (customArguments != null) {
+      debugPrint(
+        'Using custom arguments provided by beforeBuildJavaArguments hook',
+      );
+      _javaArgumentsBuilder.addGameArguments(customArguments);
+    }
+
+    String javaArgsString = _javaArgumentsBuilder.build();
+
+    javaArgsString = await afterBuildJavaArguments(versionId, javaArgsString);
+
     final javaArgs = javaArgsString.split(' ');
 
     try {
@@ -820,6 +890,10 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   ///
   /// Returns the path to the assets directory.
   String _getAssetsDir() {
+    final customDir = getCustomAssetsDirectory();
+    if (customDir != null) {
+      return _normalizePath(customDir);
+    }
     return _normalizePath(p.join(_gameDir, 'assets'));
   }
 
@@ -861,7 +935,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Returns initial classpath entries.
   @override
   Future<List<String>> beforeBuildClasspath(
-    dynamic versionInfo,
+    VersionInfo versionInfo,
     String versionId,
   ) async {
     // Default implementation does nothing
@@ -886,8 +960,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   ///
   /// [versionId] - Minecraft version ID
   @override
-  Future<void> beforeExtractNativeLibraries(String versionId) async {
+  Future<bool> beforeExtractNativeLibraries(String versionId) async {
     // Default implementation does nothing
+    return false;
   }
 
   /// Hook called after extracting native libraries.
@@ -906,8 +981,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   ///
   /// [versionId] - Minecraft version ID
   @override
-  Future<void> beforeDownloadAssets(String versionId) async {
+  Future<bool> beforeDownloadAssets(String versionId) async {
     // Default implementation does nothing
+    return false;
   }
 
   /// Hook called after downloading assets.
@@ -922,8 +998,9 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   ///
   /// [versionId] - Minecraft version ID
   @override
-  Future<void> beforeDownloadLibraries(String versionId) async {
+  Future<bool> beforeDownloadLibraries(String versionId) async {
     // Default implementation does nothing
+    return false;
   }
 
   /// Hook called before downloading client jar.
@@ -1000,9 +1077,44 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   }
 
   /// Create a versioninfo instance
-  T _createVersionInfoInstance<T extends VersionInfo>(
+  T? _createVersionInfoInstance<T extends VersionInfo>(
     Map<String, dynamic> json,
   ) {
-    return VersionInfo.fromJson(json) as T;
+    try {
+      final baseInstance = VersionInfo.fromJson(json);
+
+      if (T == VersionInfo) {
+        return baseInstance as T;
+      }
+
+      return VersionInfo.fromJsonGeneric<T>(json, factory: null);
+    } catch (e) {
+      debugPrint('Error creating version info instance of type $T: $e');
+      return null;
+    }
+  }
+
+  /// Get custom asset index path to override default path
+  /// Return null to use the default path
+  @override
+  String? getCustomAssetIndexPath(String versionId, String assetIndex) {
+    return _customAssetIndexPath;
+  }
+
+  /// Get custom assets directory path to override default path
+  /// Return null to use the default directory
+  @override
+  String? getCustomAssetsDirectory() {
+    return _customAssetsDirectory;
+  }
+
+  /// Set custom asset index path to override default path
+  void setCustomAssetIndexPath(String? path) {
+    _customAssetIndexPath = path;
+  }
+
+  /// Set custom assets directory path to override default path
+  void setCustomAssetsDirectory(String? directory) {
+    _customAssetsDirectory = directory;
   }
 }

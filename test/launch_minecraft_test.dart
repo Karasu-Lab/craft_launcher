@@ -23,7 +23,7 @@ void main() {
     type: 'latest-release',
     created: DateTime.now().toIso8601String(),
     lastUsed: DateTime.now().toIso8601String(),
-    lastVersionId: '1.21.3',
+    lastVersionId: '1.21.5',
   );
 
   final testProfiles = LauncherProfiles(

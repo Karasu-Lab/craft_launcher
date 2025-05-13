@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:craft_launcher_core/craft_launcher_core.dart';
 import 'package:craft_launcher_core/downloaders/library_downloader.dart';
@@ -246,5 +247,81 @@ class ClasspathManager {
       debugPrint('Error downloading libraries: $e');
       throw Exception('Failed to download libraries: $e');
     }
+  }
+
+  /// Removes duplicate libraries from the classpath, keeping only the newest version.
+  ///
+  /// When multiple versions of the same JAR file are found in the classpath,
+  /// this function keeps the newest version and removes older versions.
+  ///
+  /// [classpath]
+  /// The list of classpath entries to optimize
+  ///
+  /// Returns an optimized classpath list with duplicates removed
+  List<String> removeDuplicateLibraries(List<String> classpath) {
+    RegExp versionPattern = RegExp(r'-([\d.]+(?:-[\w.]+)?)\.jar$');
+    final Map<String, String> libraryPaths = {};
+    final Map<String, String> libraryVersions = {};
+    
+    for (final path in classpath) {
+      final fileName = p.basename(path);
+      final match = versionPattern.firstMatch(fileName);
+      
+      if (match != null) {
+        final version = match.group(1)!;
+        final baseName = fileName.substring(0, fileName.indexOf("-$version.jar"));
+        
+        if (libraryVersions.containsKey(baseName)) {
+          final existingVersion = libraryVersions[baseName]!;
+          
+          if (_compareVersions(version, existingVersion) > 0) {
+            debugPrint('Replacing $baseName $existingVersion with $version');
+            libraryVersions[baseName] = version;
+            libraryPaths[baseName] = path;
+          }
+        } else {
+          libraryVersions[baseName] = version;
+          libraryPaths[baseName] = path;
+        }
+      } else {
+        libraryPaths[fileName] = path;
+      }
+    }
+    
+    final optimizedClasspath = libraryPaths.values.toList();
+    
+    if (classpath.length != optimizedClasspath.length) {
+      debugPrint('Optimized classpath: removed ${classpath.length - optimizedClasspath.length} duplicate libraries');
+    }
+    
+    return optimizedClasspath;
+  }
+  
+  /// Compares two version strings to determine which is newer.
+  ///
+  /// [version1]
+  /// First version string to compare
+  ///
+  /// [version2]
+  /// Second version string to compare
+  ///
+  /// Returns a positive value if version1 is newer, 
+  /// 0 if they are the same, or a negative value if version1 is older
+  int _compareVersions(String version1, String version2) {
+    final parts1 = version1.split('.');
+    final parts2 = version2.split('.');
+    
+    final length = min(parts1.length, parts2.length);
+    
+    for (int i = 0; i < length; i++) {
+      final numPart1 = int.tryParse(parts1[i].split('-')[0]) ?? 0;
+      final numPart2 = int.tryParse(parts2[i].split('-')[0]) ?? 0;
+      
+      if (numPart1 != numPart2) {
+        return numPart1 - numPart2;
+      }
+    }
+    
+    return parts1.length - parts2.length;
   }
 }

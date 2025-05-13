@@ -75,6 +75,12 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     'is_quick_play_realms': false,
   };
 
+  /// Custom placeholder values for variable substitution
+  final Map<String, String> _customPlaceholders = {};
+
+  /// Raw extra arguments with placeholders
+  final List<String> _rawExtraArgs = [];
+
   /// Game window width.
   int _width = 854;
 
@@ -84,14 +90,32 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
   /// Path for quick play.
   String? _quickPlayPath;
 
+  /// Quick play path for singleplayer.
+  String get quickPlayPath => _quickPlayPath ?? '';
+
   /// Singleplayer world name for quick play.
   String? _quickPlaySingleplayer;
+
+  /// Singleplayer world name for quick play.
+  String get quickPlaySingleplayer => _quickPlaySingleplayer ?? '';
 
   /// Multiplayer server address for quick play.
   String? _quickPlayMultiplayer;
 
   /// Realms ID for quick play.
   String? _quickPlayRealms;
+
+  /// Realms ID for quick play.
+  String get quickPlayRealms => _quickPlayRealms ?? '';
+
+  /// Quick play for multiplayer.
+  String get quickPlayMultiplayer => _quickPlayMultiplayer ?? '';
+
+  /// Custom asset index path
+  String? _customAssetIndexPath;
+
+  /// Custom assets directory
+  String? _customAssetsDirectory;
 
   /// Creates a new JavaArgumentsBuilder instance.
   ///
@@ -131,6 +155,54 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     _classPaths.addAll(classPaths);
     return this;
   }
+
+  /// Adds custom placeholder values for variable substitution.
+  ///
+  /// [placeholders] - Map of placeholder names to their values
+  /// Returns this builder for method chaining.
+  JavaArgumentsBuilder addCustomPlaceholders(Map<String, String> placeholders) {
+    _customPlaceholders.addAll(placeholders);
+    return this;
+  }
+
+  /// Sets a single custom placeholder value.
+  ///
+  /// [name] - Name of the placeholder without ${} syntax
+  /// [value] - Value to substitute for the placeholder
+  /// Returns this builder for method chaining.
+  JavaArgumentsBuilder setCustomPlaceholder(String name, String value) {
+    _customPlaceholders[name] = value;
+    return this;
+  }
+
+  /// Gets the current custom placeholder values.
+  ///
+  /// Returns an unmodifiable map of placeholder names to their values.
+  Map<String, String> getCustomPlaceholders() =>
+      Map.unmodifiable(_customPlaceholders);
+
+  /// Adds raw arguments with placeholders that will be processed during build.
+  ///
+  /// [args] - String arguments with placeholders in format of "--key ${value}"
+  /// Returns this builder for method chaining.
+  JavaArgumentsBuilder addRawArguments(String args) {
+    _rawExtraArgs.addAll(args.split(' '));
+    return this;
+  }
+
+  /// Adds raw arguments with placeholders as a list.
+  ///
+  /// [args] - List of argument strings with placeholders
+  /// Returns this builder for method chaining.
+  JavaArgumentsBuilder addRawArgumentsList(List<String> args) {
+    _rawExtraArgs.addAll(args);
+    return this;
+  }
+
+  /// Gets the raw extra arguments list.
+  ///
+  /// Returns an unmodifiable list of raw extra arguments.
+  List<String> getRawExtraArguments() => List.unmodifiable(_rawExtraArgs);
 
   /// Sets the directory containing native libraries.
   ///
@@ -341,6 +413,34 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     return this;
   }
 
+  /// Sets a custom path for the asset index file
+  ///
+  /// [path] - Custom path to the asset index file
+  /// Returns this builder for method chaining.
+  JavaArgumentsBuilder setCustomAssetIndexPath(String path) {
+    _customAssetIndexPath = path;
+    return this;
+  }
+
+  /// Sets a custom directory for game assets
+  ///
+  /// [directory] - Custom directory path for game assets
+  /// Returns this builder for method chaining.
+  JavaArgumentsBuilder setCustomAssetsDirectory(String directory) {
+    _customAssetsDirectory = directory;
+    return this;
+  }
+
+  /// Gets the custom asset index path
+  ///
+  /// Returns the custom asset index path if set, otherwise null.
+  String? getCustomAssetIndexPath() => _customAssetIndexPath;
+
+  /// Gets the custom assets directory
+  ///
+  /// Returns the custom assets directory if set, otherwise null.
+  String? getCustomAssetsDirectory() => _customAssetsDirectory;
+
   /// Gets the game directory.
   ///
   /// Returns the game directory path if set, otherwise null.
@@ -467,7 +567,73 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
       }
     }
 
+    // Process raw extra arguments with placeholders
+    if (_rawExtraArgs.isNotEmpty) {
+      args.addAll(_processRawExtraArguments());
+    }
+
     return args.join(' ');
+  }
+
+  /// Processes raw extra arguments with placeholders.
+  ///
+  /// Returns a list of processed arguments with variables substituted.
+  List<String> _processRawExtraArguments() {
+    final List<String> processedArgs = [];
+    final Map<String, String?> variableMap = _buildVariableMap();
+
+    for (int i = 0; i < _rawExtraArgs.length; i++) {
+      var arg = _rawExtraArgs[i];
+
+      String processedArg = arg;
+
+      variableMap.forEach((key, value) {
+        if (value != null) {
+          processedArg = _replaceWithRegex(processedArg, '\${$key}', value);
+        }
+      });
+
+      if (!processedArg.contains('\${')) {
+        processedArgs.add(processedArg);
+      }
+    }
+
+    return processedArgs;
+  }
+
+  /// Builds a complete variable map combining standard and custom placeholders.
+  ///
+  /// Returns a map of all placeholder names to their values.
+  Map<String, String?> _buildVariableMap() {
+    final Map<String, String?> variableMap = {
+      'version_name': _version,
+      'version_type': 'release',
+      'game_directory': _gameDir,
+      'assets_root':
+          _customAssetsDirectory ??
+          (_gameDir != null ? '$_gameDir/assets' : null),
+      'assets_index_name': _assetsIndexName,
+      'auth_player_name': _authPlayerName,
+      'auth_uuid': _authUuid,
+      'auth_access_token': _authAccessToken,
+      'user_type': _userType ?? 'legacy',
+      'natives_directory': _nativesDir,
+      'launcher_name': _launcherName,
+      'launcher_version': _launcherVersion,
+      'classpath': _classPaths.join(Platform.isWindows ? ';' : ':'),
+      'resolution_width': _width.toString(),
+      'resolution_height': _height.toString(),
+    };
+
+    if (_customAssetIndexPath != null) {
+      variableMap['asset_index'] = _customAssetIndexPath;
+    }
+
+    _customPlaceholders.forEach((key, value) {
+      variableMap[key] = value;
+    });
+
+    return variableMap;
   }
 
   /// Processes argument lists from the version manifest.
@@ -477,53 +643,7 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
   /// Returns a list of processed arguments with variables substituted.
   List<String> _processArguments(List<dynamic> args, ArgumentType type) {
     final List<String> processedArgs = [];
-
-    final Map<String, String?> variableMap = {
-      'version_name': _version,
-      'game_directory': _gameDir,
-      'assets_root': _gameDir != null ? '$_gameDir/assets' : null,
-      'assets_index_name': _assetsIndexName,
-      'auth_player_name': _authPlayerName,
-      'user_type': _userType,
-      'natives_directory': _nativesDir,
-      'launcher_name': _launcherName,
-      'launcher_version': _launcherVersion,
-      'classpath': _classPaths.join(Platform.isWindows ? ';' : ':'),
-      'resolution_width': _width.toString(),
-      'resolution_height': _height.toString(),
-    };
-
-    if (_clientId != null) {
-      variableMap.addAll({'clientid': _clientId});
-    }
-
-    if (_authUuid != null) {
-      variableMap.addAll({'auth_uuid': _authUuid});
-    }
-
-    if (_authXuid != null) {
-      variableMap.addAll({'auth_xuid': _authXuid});
-    }
-
-    if (_authAccessToken != null) {
-      variableMap.addAll({'auth_access_token': _authAccessToken});
-    }
-
-    if (_quickPlayPath != null) {
-      variableMap.addAll({'quickPlayPath': _quickPlayPath});
-    }
-
-    if (_quickPlaySingleplayer != null) {
-      variableMap.addAll({'quickPlaySingleplayer': _quickPlaySingleplayer});
-    }
-
-    if (_quickPlayMultiplayer != null) {
-      variableMap.addAll({'quickPlayMultiplayer': _quickPlayMultiplayer});
-    }
-
-    if (_quickPlayRealms != null) {
-      variableMap.addAll({'quickPlayRealms': _quickPlayRealms});
-    }
+    final Map<String, String?> variableMap = _buildVariableMap();
 
     final List<String> optionPrefixes = ['--', '-', '-D'];
 
@@ -680,19 +800,7 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     final List<String> processedArgs = [];
     final List<String> argParts = arguments.split(' ');
 
-    final Map<String, String?> variableMap = {
-      'version_name': _version,
-      'version_type': 'release',
-      'game_directory': _gameDir,
-      'assets_root': _gameDir != null ? '$_gameDir/assets' : null,
-      'assets_index_name': _assetsIndexName,
-      'auth_player_name': _authPlayerName,
-      'auth_uuid': _authUuid,
-      'auth_access_token': _authAccessToken,
-      'user_type': _userType ?? 'legacy',
-      'resolution_width': _width.toString(),
-      'resolution_height': _height.toString(),
-    };
+    final Map<String, String?> variableMap = _buildVariableMap();
 
     for (int i = 0; i < argParts.length; i++) {
       var arg = argParts[i];
@@ -844,5 +952,152 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
     } else {
       return a;
     }
+  }
+
+  /// Merges arguments from multiple sources into a single Arguments object.
+  ///
+  /// This is particularly useful for modded versions that need to combine
+  /// arguments from the parent (vanilla) version with their own arguments.
+  ///
+  /// [baseArgs] - The base Arguments object to use
+  /// [additionalArgs] - Additional Arguments object to merge with the base
+  /// [prioritizeAdditional] - When true, the additionalArgs will take precedence over baseArgs in case of conflicts
+  /// Returns a merged Arguments object
+  Arguments mergeArguments(
+    Arguments baseArgs,
+    Arguments? additionalArgs, {
+    bool prioritizeAdditional = true,
+  }) {
+    if (additionalArgs == null) {
+      return baseArgs;
+    }
+
+    // Merge JVM arguments
+    final List<dynamic> mergedJvm = [];
+
+    // Add base JVM arguments
+    if (baseArgs.jvm != null) {
+      mergedJvm.addAll(baseArgs.jvm!);
+    }
+
+    // Add additional JVM arguments, avoiding duplicates
+    if (additionalArgs.jvm != null) {
+      for (final arg in additionalArgs.jvm!) {
+        // If prioritizing additional args or the arg isn't already in the list, add it
+        if (prioritizeAdditional) {
+          // For complex objects like rule-based arguments, we need to check more carefully
+          if (arg is Map<String, dynamic>) {
+            // Remove any existing args with the same rules, then add the new one
+            mergedJvm.removeWhere((existingArg) {
+              if (existingArg is Map<String, dynamic>) {
+                return _areMapsEquivalent(existingArg, arg);
+              }
+              return false;
+            });
+            mergedJvm.add(arg);
+          } else if (!mergedJvm.contains(arg)) {
+            mergedJvm.add(arg);
+          }
+        } else if (!mergedJvm.contains(arg)) {
+          mergedJvm.add(arg);
+        }
+      }
+    }
+
+    // Merge game arguments
+    final List<dynamic> mergedGame = [];
+
+    // Add base game arguments
+    if (baseArgs.game != null) {
+      mergedGame.addAll(baseArgs.game!);
+    }
+
+    // Add additional game arguments, avoiding duplicates
+    if (additionalArgs.game != null) {
+      for (final arg in additionalArgs.game!) {
+        // If prioritizing additional args or the arg isn't already in the list, add it
+        if (prioritizeAdditional) {
+          // For complex objects like rule-based arguments, we need to check more carefully
+          if (arg is Map<String, dynamic>) {
+            // Remove any existing args with the same rules, then add the new one
+            mergedGame.removeWhere((existingArg) {
+              if (existingArg is Map<String, dynamic>) {
+                return _areMapsEquivalent(existingArg, arg);
+              }
+              return false;
+            });
+            mergedGame.add(arg);
+          } else if (!mergedGame.contains(arg)) {
+            mergedGame.add(arg);
+          }
+        } else if (!mergedGame.contains(arg)) {
+          mergedGame.add(arg);
+        }
+      }
+    }
+
+    return Arguments(jvm: mergedJvm, game: mergedGame);
+  }
+
+  /// Utility method to check if two maps represent the same argument rule
+  ///
+  /// [map1] - First map to compare
+  /// [map2] - Second map to compare
+  /// Returns true if the maps are equivalent for argument comparison purposes
+  bool _areMapsEquivalent(
+    Map<String, dynamic> map1,
+    Map<String, dynamic> map2,
+  ) {
+    // For rule-based arguments, we consider them equivalent if they have the same rules
+    if (map1.containsKey('rules') && map2.containsKey('rules')) {
+      return _areRulesEquivalent(map1['rules'], map2['rules']);
+    }
+
+    // For other maps, we use a more general approach
+    if (map1.length != map2.length) return false;
+
+    for (final key in map1.keys) {
+      if (!map2.containsKey(key)) return false;
+      if (map1[key] != map2[key]) {
+        // If the values are maps, recursively check them
+        if (map1[key] is Map<String, dynamic> &&
+            map2[key] is Map<String, dynamic>) {
+          if (!_areMapsEquivalent(
+            map1[key] as Map<String, dynamic>,
+            map2[key] as Map<String, dynamic>,
+          )) {
+            return false;
+          }
+        } else {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /// Utility method to check if two sets of rules are equivalent
+  ///
+  /// [rules1] - First set of rules
+  /// [rules2] - Second set of rules
+  /// Returns true if the rules are equivalent
+  bool _areRulesEquivalent(List<dynamic> rules1, List<dynamic> rules2) {
+    if (rules1.length != rules2.length) return false;
+
+    for (int i = 0; i < rules1.length; i++) {
+      final rule1 = rules1[i];
+      final rule2 = rules2[i];
+
+      if (rule1 is Map<String, dynamic> && rule2 is Map<String, dynamic>) {
+        if (!_areMapsEquivalent(rule1, rule2)) {
+          return false;
+        }
+      } else if (rule1 != rule2) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

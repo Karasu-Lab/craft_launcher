@@ -45,6 +45,22 @@ class VersionInfo {
 
   factory VersionInfo.fromJson(Map<String, dynamic> json) =>
       _$VersionInfoFromJson(json);
+
+  static T? fromJsonGeneric<T extends VersionInfo>(
+    Map<String, dynamic> json, {
+    T Function(Map<String, dynamic>)? factory,
+  }) {
+    if (factory != null) {
+      return factory(json);
+    }
+    
+    if (T == VersionInfo) {
+      return _$VersionInfoFromJson(json) as T;
+    }
+    
+    return null;
+  }
+
   Map<String, dynamic> toJson() => _$VersionInfoToJson(this);
 }
 
