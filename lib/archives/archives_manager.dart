@@ -119,6 +119,7 @@ class ArchivesManager {
       String? resourceName,
     })
     downloadFile,
+    List<String>? additionalJars,
   }) async {
     String resultNativesDir = '';
 
@@ -173,6 +174,13 @@ class ArchivesManager {
       List<File> allExtractedNativeFiles = [];
       int processedLibraries = 0;
       int lastReportedPercentage = 0;
+
+      // 追加のJARファイルがある場合、カウントを追加
+      final additionalJarsCount = additionalJars?.length ?? 0;
+      if (additionalJarsCount > 0) {
+        totalLibraries += additionalJarsCount;
+        debugPrint('Including $additionalJarsCount additional JAR files');
+      }
 
       for (final library in nativeLibraries) {
         final downloads = library.downloads!;
@@ -286,6 +294,89 @@ class ArchivesManager {
         } catch (e) {
           debugPrint('Error extracting natives from $nativeJar: $e');
           processedLibraries++;
+        }
+      }
+
+      // 追加のJARファイルからネイティブライブラリを抽出する
+      if (additionalJars != null && additionalJars.isNotEmpty) {
+        for (final additionalJar in additionalJars) {
+          try {
+            final jarFile = File(additionalJar);
+            if (!await jarFile.exists()) {
+              debugPrint(
+                'Additional JAR file not found, skipping: $additionalJar',
+              );
+              processedLibraries++;
+              continue;
+            }
+
+            debugPrint('Processing additional JAR file: $additionalJar');
+            final jarBytes = await jarFile.readAsBytes();
+            final archive = ZipDecoder().decodeBytes(jarBytes);
+
+            for (final file in archive) {
+              if (file.isFile) {
+                final fileName = p.basename(file.name);
+                final fileExt = p.extension(fileName).toLowerCase();
+
+                bool isValidForPlatform = false;
+                if (Platform.isWindows) {
+                  isValidForPlatform = nativeExtensions.any(
+                    (ext) => fileName.toLowerCase().endsWith(ext),
+                  );
+                } else if (Platform.isMacOS) {
+                  isValidForPlatform = nativeExtensions.contains(fileExt);
+                } else if (Platform.isLinux) {
+                  isValidForPlatform = fileExt == '.so';
+                }
+
+                if (isValidForPlatform) {
+                  final tempFilePath = p.join(
+                    tempDir.path,
+                    'extracted',
+                    fileName,
+                  );
+                  final tempFileDir = Directory(p.dirname(tempFilePath));
+                  if (!await tempFileDir.exists()) {
+                    await tempFileDir.create(recursive: true);
+                  }
+
+                  final data = file.content;
+                  final tempFile = await File(
+                    tempFilePath,
+                  ).create(recursive: true);
+                  await tempFile.writeAsBytes(Uint8List.fromList(data));
+                  allExtractedNativeFiles.add(tempFile);
+                  debugPrint(
+                    'Extracted native library from additional JAR: $fileName',
+                  );
+                }
+              }
+            }
+
+            processedLibraries++;
+
+            if (_onOperationProgress != null && totalLibraries > 0) {
+              final percentage = (processedLibraries / totalLibraries) * 100;
+              final reportPercentage =
+                  (percentage ~/ _progressReportRate) * _progressReportRate;
+
+              if (reportPercentage > lastReportedPercentage) {
+                lastReportedPercentage = reportPercentage;
+                _onOperationProgress(
+                  operationName,
+                  processedLibraries,
+                  totalLibraries,
+                  percentage,
+                );
+              }
+            }
+          } catch (e) {
+            debugPrint(
+              'Error extracting natives from additional JAR $additionalJar: $e',
+            );
+            processedLibraries++;
+          }
         }
       }
 

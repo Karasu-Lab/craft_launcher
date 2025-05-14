@@ -66,7 +66,6 @@ abstract interface class LauncherAdapter {
   /// Hook called before downloading libraries
   /// Returns true if the download should proceed, false to skip
   Future<bool> beforeDownloadLibraries(String versionId);
-
   /// Hook called before extracting native libraries
   /// Returns true if the extraction should proceed, false to skip
   Future<bool> beforeExtractNativeLibraries(String versionId);
@@ -172,12 +171,23 @@ abstract interface class LauncherAdapter {
 
   /// Get the launcher is modded
   bool isModded();
-
   /// Get custom asset index path to override default path
   /// Return null to use the default path
   String? getCustomAssetIndexPath(String versionId, String assetIndex);
-
+  
   /// Get custom assets directory path to override default path
   /// Return null to use the default directory
   String? getCustomAssetsDirectory();
+
+  /// Get additional native libraries to extract.
+  /// These libraries will be added to the native libraries extracted from the version's libraries.
+  /// 
+  /// [versionId] - The version ID for which to get additional native libraries
+  /// [nativesPath] - The path where native libraries will be extracted
+  /// 
+  /// Returns a list of paths to additional JAR files containing native libraries
+  Future<List<String>> getAdditionalNativeLibraries(
+    String versionId,
+    String nativesPath,
+  );
 }
