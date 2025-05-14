@@ -3,6 +3,7 @@ analyzer:
   errors:
     unused_element: ignore
     empty_catches: ignore
+    file_names: ignore
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
