@@ -28,9 +28,14 @@ Map<String, dynamic> _$LatestToJson(Latest instance) => <String, dynamic>{
   'snapshot': instance.snapshot,
 };
 
-Version _$VersionFromJson(Map<String, dynamic> json) =>
-    Version(complianceLevel: (json['complianceLevel'] as num).toInt());
+Version _$VersionFromJson(Map<String, dynamic> json) => Version(
+  id: json['id'] as String,
+  type: json['type'] as String,
+  url: json['url'] as String,
+);
 
 Map<String, dynamic> _$VersionToJson(Version instance) => <String, dynamic>{
-  'complianceLevel': instance.complianceLevel,
+  'id': instance.id,
+  'type': instance.type,
+  'url': instance.url,
 };

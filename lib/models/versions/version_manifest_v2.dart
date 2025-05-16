@@ -29,9 +29,11 @@ class Latest {
 
 @JsonSerializable()
 class Version {
-  final int complianceLevel;
+  final String id;
+  final String type;
+  final String url;
 
-  Version({required this.complianceLevel});
+  Version({required this.id, required this.type, required this.url});
 
   factory Version.fromJson(Map<String, dynamic> json) =>
       _$VersionFromJson(json);
