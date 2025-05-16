@@ -11,8 +11,9 @@ void main() {
       final Map<String, dynamic> mockJson = {
         'latest': {'release': '1.20.2', 'snapshot': '23w40a'},
         'versions': [
-          {'complianceLevel': 1},
-          {'complianceLevel': 2},
+          {'id': '1', 'type': 'release', 'url': 'https://example.com/1'},
+          {'id': '2', 'type': 'snapshot', 'url': 'https://example.com/2'},
+          {'id': '3', 'type': 'beta', 'url': 'https://example.com/3'},
         ],
       };
 
@@ -21,9 +22,10 @@ void main() {
       expect(result, isA<VersionManifestV2>());
       expect(result.latest.release, equals('1.20.2'));
       expect(result.latest.snapshot, equals('23w40a'));
-      expect(result.versions.length, equals(2));
-      expect(result.versions[0].complianceLevel, equals(1));
-      expect(result.versions[1].complianceLevel, equals(2));
+      expect(result.versions.length, equals(3));
+      expect(result.versions[0].id, equals('1'));
+      expect(result.versions[1].type, equals('snapshot'));
+      expect(result.versions[2].url, equals('https://example.com/3'));
     });
 
     test('Can correctly parse even with an empty version list', () {
@@ -43,8 +45,9 @@ void main() {
     test('toJson method correctly converts to JSON', () {
       final Latest latest = Latest(release: '1.20.2', snapshot: '23w40a');
       final List<Version> versions = [
-        Version(complianceLevel: 1),
-        Version(complianceLevel: 2),
+        Version(id: '1', type: 'release', url: 'https://example.com/1'),
+        Version(id: '2', type: 'snapshot', url: 'https://example.com/2'),
+        Version(id: '3', type: 'beta', url: 'https://example.com/3'),
       ];
       final VersionManifestV2 versionManifest = VersionManifestV2(
         latest: latest,
@@ -64,8 +67,8 @@ void main() {
       expect(result['versions'].length, equals(2));
       final version0 = result['versions'][0] as dynamic;
       final version1 = result['versions'][1] as dynamic;
-      expect(version0.complianceLevel, equals(1));
-      expect(version1.complianceLevel, equals(2));
+      expect(version0.id, equals('1'));
+      expect(version1.id, equals('2'));
     });
   });
 
