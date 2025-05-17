@@ -46,6 +46,33 @@ class Profile {
     this.javaArgs,
   });
 
+  /// Creates a copy of this Profile with the given fields replaced with new values
+  Profile copyWith({
+    String? created,
+    String? gameDir,
+    String? icon,
+    String? javaDir,
+    String? lastUsed,
+    String? lastVersionId,
+    String? name,
+    bool? skipJreVersionCheck,
+    String? type,
+    String? javaArgs,
+  }) {
+    return Profile(
+      created: created ?? this.created,
+      gameDir: gameDir ?? this.gameDir,
+      icon: icon ?? this.icon,
+      javaDir: javaDir ?? this.javaDir,
+      lastUsed: lastUsed ?? this.lastUsed,
+      lastVersionId: lastVersionId ?? this.lastVersionId,
+      name: name ?? this.name,
+      skipJreVersionCheck: skipJreVersionCheck ?? this.skipJreVersionCheck,
+      type: type ?? this.type,
+      javaArgs: javaArgs ?? this.javaArgs,
+    );
+  }
+
   factory Profile.fromJson(Map<String, dynamic> json) =>
       _$ProfileFromJson(json);
 
@@ -85,4 +112,3 @@ class Settings {
 
   Map<String, dynamic> toJson() => _$SettingsToJson(this);
 }
-

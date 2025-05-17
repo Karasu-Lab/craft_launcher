@@ -98,10 +98,10 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// List of active completers for tracking ongoing operations.
   List<Completer<void>> _activeCompleters = [];
 
-  /// カスタムアセットインデックスパス
+  /// Custom asset index path
   String? _customAssetIndexPath;
 
-  /// カスタムアセットディレクトリ
+  /// Custom assets directory
   String? _customAssetsDirectory;
 
   /// Creates a new VanillaLauncher instance.
@@ -348,6 +348,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
       throw Exception('Failed to download libraries: $e');
     }
   }
+
   /// Extracts native libraries required for Minecraft.
   ///
   /// Returns the path to the extracted native libraries.
@@ -358,13 +359,15 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
 
     final versionId = _profileManager.activeProfile.lastVersionId;
     final shouldProceed = await beforeExtractNativeLibraries(versionId);
-    
+
     if (!shouldProceed) {
-      debugPrint('Native libraries extraction skipped by beforeExtractNativeLibraries hook');
+      debugPrint(
+        'Native libraries extraction skipped by beforeExtractNativeLibraries hook',
+      );
       _nativeLibrariesCompleter!.complete();
       return '';
     }
-    
+
     final versionInfo = await fetchVersionManifest(versionId);
 
     if (versionInfo == null || versionInfo.libraries == null) {
@@ -380,16 +383,18 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
         versionId,
         tempNativesDir,
       );
-      
+
       // 追加のライブラリがある場合はログに出力
       if (additionalNativeLibraries.isNotEmpty) {
-        debugPrint('Additional native library JARs to extract: ${additionalNativeLibraries.length}');
+        debugPrint(
+          'Additional native library JARs to extract: ${additionalNativeLibraries.length}',
+        );
         for (final jar in additionalNativeLibraries) {
           debugPrint('Additional JAR: $jar');
         }
       }
 
-      // オリジナルのネイティブライブラリとカスタムネイティブライブラリを組み合わせて抽出
+      // Extract both original native libraries and custom native libraries
       final resultNativesDir = await _archivesManager.extractNativeLibraries(
         libraries: versionInfo.libraries!,
         versionId: versionId,
@@ -604,9 +609,39 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
 
     try {
       final classpath = await beforeBuildClasspath(versionInfo, versionId);
-      classpath.addAll(
-        await _classpathManager.buildClasspath(versionInfo, versionId),
-      );
+
+      // Get the client jar path
+      final clientJarPath = _getClientJarPath(versionId);
+      final clientJarFile = File(clientJarPath);
+
+      // Check if client jar exists before adding it to classpath
+      if (await clientJarFile.exists()) {
+        debugPrint('Client JAR file found: $clientJarPath');
+
+        // The classpath manager will include all necessary paths including libraries
+        classpath.addAll(
+          await _classpathManager.buildClasspath(versionInfo, versionId),
+        );
+      } else {
+        debugPrint('Warning: Client JAR file not found at $clientJarPath');
+        // Try to download the client jar first
+        await downloadClientJar();
+
+        // Check again after download attempt
+        if (await clientJarFile.exists()) {
+          debugPrint('Client JAR file successfully downloaded');
+          classpath.addAll(
+            await _classpathManager.buildClasspath(versionInfo, versionId),
+          );
+        } else {
+          debugPrint('Error: Could not find or download client JAR file');
+          // Continue with available classpath entries, but this will likely cause issues
+          classpath.addAll(
+            await _classpathManager.buildClasspath(versionInfo, versionId),
+          );
+        }
+      }
+
       _classpathCompleter!.complete();
       await afterBuildClasspath(versionInfo, versionId, classpath);
       return classpath;
@@ -980,13 +1015,14 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   ) async {
     // Default implementation does nothing
   }
+
   /// Hook called before extracting native libraries.
   ///
   /// [versionId] - Minecraft version ID
   /// Returns true to proceed with extraction, false to skip
   @override
   Future<bool> beforeExtractNativeLibraries(String versionId) async {
-    // デフォルト実装では常に展開を続行
+    // Default implementation always proceeds with extraction
     return true;
   }
 
@@ -1125,6 +1161,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   String? getCustomAssetIndexPath(String versionId, String assetIndex) {
     return _customAssetIndexPath;
   }
+
   /// Get custom assets directory path to override default path
   /// Return null to use the default directory
   @override
@@ -1134,17 +1171,17 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
 
   /// Get additional native libraries to extract.
   /// These libraries will be added to the native libraries extracted from the version's libraries.
-  /// 
+  ///
   /// [versionId] - The version ID for which to get additional native libraries
   /// [nativesPath] - The path where native libraries will be extracted
-  /// 
+  ///
   /// Returns a list of paths to additional JAR files containing native libraries
   @override
   Future<List<String>> getAdditionalNativeLibraries(
     String versionId,
     String nativesPath,
   ) async {
-    // デフォルト実装では追加のJARファイルはありません
+    // Default implementation has no additional JAR files
     return [];
   }
 
