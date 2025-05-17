@@ -33,6 +33,7 @@ Profile _$ProfileFromJson(Map<String, dynamic> json) => Profile(
   skipJreVersionCheck: json['skipJreVersionCheck'] as bool?,
   type: json['type'] as String,
   javaArgs: json['javaArgs'] as String?,
+  index: (json['index'] as num?)?.toInt() ?? 0,
 );
 
 Map<String, dynamic> _$ProfileToJson(Profile instance) => <String, dynamic>{
@@ -46,6 +47,7 @@ Map<String, dynamic> _$ProfileToJson(Profile instance) => <String, dynamic>{
   'skipJreVersionCheck': instance.skipJreVersionCheck,
   'type': instance.type,
   'javaArgs': instance.javaArgs,
+  'index': instance.index,
 };
 
 Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings(

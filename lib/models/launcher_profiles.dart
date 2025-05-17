@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:uuid/uuid.dart';
 
 part 'launcher_profiles.g.dart';
 
@@ -22,6 +23,7 @@ class LauncherProfiles {
 
 @JsonSerializable()
 class Profile {
+  final String id = const Uuid().v4();
   final String created;
   final String? gameDir;
   final String icon;
@@ -32,6 +34,7 @@ class Profile {
   final bool? skipJreVersionCheck;
   final String type;
   final String? javaArgs;
+  int index;
 
   Profile({
     required this.created,
@@ -44,6 +47,7 @@ class Profile {
     this.skipJreVersionCheck,
     required this.type,
     this.javaArgs,
+    this.index = 0,
   });
 
   /// Creates a copy of this Profile with the given fields replaced with new values
@@ -58,6 +62,7 @@ class Profile {
     bool? skipJreVersionCheck,
     String? type,
     String? javaArgs,
+    int? index,
   }) {
     return Profile(
       created: created ?? this.created,
@@ -70,6 +75,7 @@ class Profile {
       skipJreVersionCheck: skipJreVersionCheck ?? this.skipJreVersionCheck,
       type: type ?? this.type,
       javaArgs: javaArgs ?? this.javaArgs,
+      index: index ?? this.index,
     );
   }
 
