@@ -104,6 +104,15 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Custom assets directory
   String? _customAssetsDirectory;
 
+  /// Flag to determine if client jar should be used directly from version directory
+  bool _useClientJar = true;
+
+  /// Getter to determine if client jar should be used directly from version directory
+  bool get useClientJar => _useClientJar;
+
+  /// Setter to control if client jar should be used directly from version directory
+  set useClientJar(bool value) => _useClientJar = value;
+
   /// Creates a new VanillaLauncher instance.
   ///
   /// [gameDir] - Directory where the game files are stored
@@ -611,11 +620,11 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
       final classpath = await beforeBuildClasspath(versionInfo, versionId);
 
       // Get the client jar path
-      final clientJarPath = _getClientJarPath(versionId);
+      final clientJarPath = getClientJarPath(versionId);
       final clientJarFile = File(clientJarPath);
 
       // Check if client jar exists before adding it to classpath
-      if (await clientJarFile.exists()) {
+      if (useClientJar && await clientJarFile.exists()) {
         debugPrint('Client JAR file found: $clientJarPath');
 
         // The classpath manager will include all necessary paths including libraries
@@ -623,19 +632,26 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
           await _classpathManager.buildClasspath(versionInfo, versionId),
         );
       } else {
-        debugPrint('Warning: Client JAR file not found at $clientJarPath');
-        // Try to download the client jar first
-        await downloadClientJar();
+        if (useClientJar) {
+          debugPrint('Warning: Client JAR file not found at $clientJarPath');
+          // Try to download the client jar first
+          await downloadClientJar();
 
-        // Check again after download attempt
-        if (await clientJarFile.exists()) {
-          debugPrint('Client JAR file successfully downloaded');
-          classpath.addAll(
-            await _classpathManager.buildClasspath(versionInfo, versionId),
-          );
+          // Check again after download attempt
+          if (await clientJarFile.exists()) {
+            debugPrint('Client JAR file successfully downloaded');
+            classpath.addAll(
+              await _classpathManager.buildClasspath(versionInfo, versionId),
+            );
+          } else {
+            debugPrint('Error: Could not find or download client JAR file');
+            // Continue with available classpath entries, but this will likely cause issues
+            classpath.addAll(
+              await _classpathManager.buildClasspath(versionInfo, versionId),
+            );
+          }
         } else {
-          debugPrint('Error: Could not find or download client JAR file');
-          // Continue with available classpath entries, but this will likely cause issues
+          debugPrint('Skipping client JAR file check as useClientJar is false');
           classpath.addAll(
             await _classpathManager.buildClasspath(versionInfo, versionId),
           );
@@ -714,7 +730,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
         .setVersion(versionInfo.id)
         .addClassPaths(classpath)
         .setNativesDir(nativesPath)
-        .setClientJar(_getClientJarPath(versionId))
+        .setClientJar(useClientJar ? getClientJarPath(versionId) : null)
         .setMainClass(mainClass)
         .setAssetsIndexName(assetIndexName)
         .setLauncherName(_launcherName)
@@ -894,6 +910,11 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   /// Downloads the Minecraft client JAR file.
   @override
   Future<void> downloadClientJar() async {
+    if (!useClientJar) {
+      debugPrint('Skipping client JAR download as useClientJar is false');
+      return;
+    }
+
     final versionId = _profileManager.activeProfile.lastVersionId;
 
     // Run before download client jar hook
@@ -935,7 +956,7 @@ class VanillaLauncher implements VanillaLauncherInterface, LauncherAdapter {
   ///
   /// [versionId] - Minecraft version ID
   /// Returns the path to the client JAR file.
-  String _getClientJarPath(String versionId) {
+  String getClientJarPath(String versionId) {
     return _normalizePath(p.join(_getVersionDir(versionId), '$versionId.jar'));
   }
 

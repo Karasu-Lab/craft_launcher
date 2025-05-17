@@ -24,11 +24,11 @@ class LauncherProfiles {
 @JsonSerializable()
 class Profile {
   final String id;
-  final String created;
+  final String? created;
   final String? gameDir;
   final String icon;
   final String? javaDir;
-  final String lastUsed;
+  final String? lastUsed;
   final String lastVersionId;
   final String name;
   final bool? skipJreVersionCheck;
@@ -38,11 +38,11 @@ class Profile {
 
   Profile({
     String id = '',
-    required this.created,
+    this.created,
     this.gameDir,
     required this.icon,
     this.javaDir,
-    required this.lastUsed,
+    this.lastUsed,
     required this.lastVersionId,
     required this.name,
     this.skipJreVersionCheck,

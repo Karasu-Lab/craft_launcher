@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:craft_launcher_core/interfaces/java_arguments_builder_interface.dart';
 import 'package:craft_launcher_core/models/jvm_rule.dart';
 import 'package:craft_launcher_core/models/versions/version_info.dart';
+import 'package:flutter/widgets.dart';
 
 /// Enum defining the types of arguments that can be processed.
 enum ArgumentType { jvm, game }
@@ -219,7 +220,12 @@ class JavaArgumentsBuilder implements JavaArgumentsBuilderInterface {
   /// [clientJarPath] - Path to the client JAR file
   /// Returns this builder for method chaining.
   @override
-  JavaArgumentsBuilder setClientJar(String clientJarPath) {
+  JavaArgumentsBuilder setClientJar(String? clientJarPath) {
+    if (clientJarPath == null) {
+      debugPrint('Client jar path is null. Skipping to add to classpath.');
+      return this;
+    }
+
     _clientJar = clientJarPath;
     if (!_classPaths.contains(clientJarPath)) {
       _classPaths.add(clientJarPath);

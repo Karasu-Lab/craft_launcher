@@ -24,11 +24,11 @@ Map<String, dynamic> _$LauncherProfilesToJson(LauncherProfiles instance) =>
 
 Profile _$ProfileFromJson(Map<String, dynamic> json) => Profile(
   id: json['id'] as String? ?? '',
-  created: json['created'] as String,
+  created: json['created'] as String?,
   gameDir: json['gameDir'] as String?,
   icon: json['icon'] as String,
   javaDir: json['javaDir'] as String?,
-  lastUsed: json['lastUsed'] as String,
+  lastUsed: json['lastUsed'] as String?,
   lastVersionId: json['lastVersionId'] as String,
   name: json['name'] as String,
   skipJreVersionCheck: json['skipJreVersionCheck'] as bool?,

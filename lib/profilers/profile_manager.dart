@@ -8,10 +8,10 @@ import 'package:path/path.dart' as p;
 class ProfileManager {
   /// Directory where game files and launcher profiles are stored.
   String gameDir;
-  
+
   /// Collection of launcher profiles.
   LauncherProfiles? _profiles;
-  
+
   /// Currently selected profile.
   Profile? _activeProfile;
 
@@ -96,10 +96,12 @@ class ProfileManager {
         DateTime mostRecentTime = DateTime(1970);
 
         for (final profile in _profiles!.profiles.values) {
-          final lastUsedTime = DateTime.parse(profile.lastUsed);
-          if (lastUsedTime.isAfter(mostRecentTime)) {
-            mostRecentTime = lastUsedTime;
-            mostRecentProfile = profile;
+          if (profile.lastUsed != null) {
+            final lastUsedTime = DateTime.parse(profile.lastUsed!);
+            if (lastUsedTime.isAfter(mostRecentTime)) {
+              mostRecentTime = lastUsedTime;
+              mostRecentProfile = profile;
+            }
           }
         }
 

@@ -41,6 +41,68 @@ class ClasspathManager {
   /// Controls how frequently progress updates are sent, in percentage points.
   final int _progressReportRate;
 
+  /// Stores the list of JAR files currently in the classpath.
+  final List<String> _classPathJarFiles = [];
+
+  /// Gets the list of JAR files currently in the classpath.
+  ///
+  /// Returns a copy of the list containing all classpath entries.
+  List<String> get classPathJarFiles => List.unmodifiable(_classPathJarFiles);
+
+  /// Checks if a JAR file exists and has content.
+  ///
+  /// [jarPath]
+  /// Path to the JAR file to check.
+  ///
+  /// Returns true if the file exists and has non-zero size.
+  Future<bool> _isValidJarFile(String jarPath) async {
+    final file = File(jarPath);
+    if (!await file.exists()) {
+      debugPrint('JAR file does not exist: $jarPath');
+      return false;
+    }
+
+    final size = await file.length();
+    if (size <= 0) {
+      debugPrint('JAR file is empty: $jarPath');
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Adds a JAR file to the classpath.
+  ///
+  /// [jarPath]
+  /// The path to the JAR file to add to the classpath.
+  ///
+  /// [normalize]
+  /// Whether to normalize the path before adding. Defaults to true.
+  ///
+  /// [checkFileValidity]
+  /// Whether to check if the file exists and has content. Defaults to true.
+  ///
+  /// Returns true if the JAR file was added successfully, false otherwise.
+  Future<bool> addClassPath(
+    String jarPath, {
+    bool normalize = true,
+    bool checkFileValidity = true,
+  }) async {
+    final path = normalize ? _normalizePath(jarPath) : jarPath;
+    if (_classPathJarFiles.contains(path)) {
+      debugPrint('JAR file already in classpath: $path');
+      return false;
+    }
+
+    if (checkFileValidity && !await _isValidJarFile(path)) {
+      return false;
+    }
+
+    _classPathJarFiles.add(path);
+    debugPrint('Added JAR file to classpath: $path');
+    return true;
+  }
+
   /// Creates a new classpath manager.
   ///
   /// [gameDir]
@@ -99,32 +161,52 @@ class ClasspathManager {
   /// [versionId]
   /// The Minecraft version identifier.
   ///
+  /// [customClientJar]
+  /// Optional custom path to the client JAR file.
+  ///
   /// Returns a list of paths to be included in the Java classpath.
   /// Throws an exception if critical files cannot be downloaded.
   Future<List<String>> buildClasspath(
     VersionInfo versionInfo,
-    String versionId,
-  ) async {
-    final clientJarPath = getClientJarPath(versionId);
+    String versionId, {
+    String? customClientJar,
+  }) async {
+    // Clear previous classpath entries
+    _classPathJarFiles.clear();
+
+    final clientJarPath = customClientJar ?? getClientJarPath(versionId);
     final classpath = <String>[];
 
-    if (!await File(clientJarPath).exists()) {
+    // Add client JAR to classpath
+    if (customClientJar != null) {
+      if (await addClassPath(customClientJar)) {
+        classpath.add(customClientJar);
+        debugPrint('Using custom client JAR: $customClientJar');
+      } else {
+        debugPrint('Custom client JAR is invalid: $customClientJar');
+      }
+    } else if (!await File(clientJarPath).exists()) {
       debugPrint(
         'Client JAR file not found. Trying to download: $clientJarPath',
       );
       try {
         await downloadClientJar(versionInfo, versionId);
-        if (!await File(clientJarPath).exists()) {
-          throw Exception('Failed to download client JAR file: $clientJarPath');
+
+        if (await addClassPath(clientJarPath)) {
+          classpath.add(clientJarPath);
+          debugPrint(
+            'Downloaded and added client jar to classpath: $clientJarPath',
+          );
         }
       } catch (e) {
-        debugPrint('Failed to download Minecraft client files skipping it: $e');
+        debugPrint('Failed to download Minecraft client files: $e');
       }
+    } else if (await addClassPath(clientJarPath)) {
+      classpath.add(clientJarPath);
+      debugPrint('Added client jar to classpath: $clientJarPath');
     }
 
-    classpath.add(clientJarPath);
-    debugPrint('Adding client jar to classpath: $clientJarPath');
-
+    // Process libraries
     int missingLibraries = 0;
     final libraries = versionInfo.libraries ?? [];
     for (final library in libraries) {
@@ -164,23 +246,23 @@ class ClasspathManager {
       if (path == null) continue;
       final libraryPath = _normalizePath(p.join(_librariesDir, path));
 
-      bool fileExists = await File(libraryPath).exists();
-      if (fileExists) {
+      if (await addClassPath(libraryPath)) {
         classpath.add(libraryPath);
-        debugPrint('Added library to classpath: $libraryPath');
       } else {
         missingLibraries++;
-        debugPrint('Library not found: $libraryPath');
+        debugPrint('Library not found or invalid: $libraryPath');
         try {
           await downloadLibraries(versionInfo);
-          if (await File(libraryPath).exists()) {
+
+          // Try to add the library again after download
+          if (await addClassPath(libraryPath)) {
             classpath.add(libraryPath);
             debugPrint(
               'Downloaded and added library to classpath: $libraryPath',
             );
           } else {
             debugPrint(
-              'Library still not found after download attempt: $libraryPath',
+              'Library still invalid after download attempt: $libraryPath',
             );
           }
         } catch (e) {
@@ -262,18 +344,21 @@ class ClasspathManager {
     RegExp versionPattern = RegExp(r'-([\d.]+(?:-[\w.]+)?)\.jar$');
     final Map<String, String> libraryPaths = {};
     final Map<String, String> libraryVersions = {};
-    
+
     for (final path in classpath) {
       final fileName = p.basename(path);
       final match = versionPattern.firstMatch(fileName);
-      
+
       if (match != null) {
         final version = match.group(1)!;
-        final baseName = fileName.substring(0, fileName.indexOf("-$version.jar"));
-        
+        final baseName = fileName.substring(
+          0,
+          fileName.indexOf("-$version.jar"),
+        );
+
         if (libraryVersions.containsKey(baseName)) {
           final existingVersion = libraryVersions[baseName]!;
-          
+
           if (_compareVersions(version, existingVersion) > 0) {
             debugPrint('Replacing $baseName $existingVersion with $version');
             libraryVersions[baseName] = version;
@@ -287,16 +372,21 @@ class ClasspathManager {
         libraryPaths[fileName] = path;
       }
     }
-    
+
     final optimizedClasspath = libraryPaths.values.toList();
-    
+
     if (classpath.length != optimizedClasspath.length) {
-      debugPrint('Optimized classpath: removed ${classpath.length - optimizedClasspath.length} duplicate libraries');
+      debugPrint(
+        'Optimized classpath: removed ${classpath.length - optimizedClasspath.length} duplicate libraries',
+      );
+      // Update the stored classpath jar files list with optimized list
+      _classPathJarFiles.clear();
+      _classPathJarFiles.addAll(optimizedClasspath);
     }
-    
+
     return optimizedClasspath;
   }
-  
+
   /// Compares two version strings to determine which is newer.
   ///
   /// [version1]
@@ -305,23 +395,50 @@ class ClasspathManager {
   /// [version2]
   /// Second version string to compare
   ///
-  /// Returns a positive value if version1 is newer, 
+  /// Returns a positive value if version1 is newer,
   /// 0 if they are the same, or a negative value if version1 is older
   int _compareVersions(String version1, String version2) {
     final parts1 = version1.split('.');
     final parts2 = version2.split('.');
-    
+
     final length = min(parts1.length, parts2.length);
-    
+
     for (int i = 0; i < length; i++) {
       final numPart1 = int.tryParse(parts1[i].split('-')[0]) ?? 0;
       final numPart2 = int.tryParse(parts2[i].split('-')[0]) ?? 0;
-      
+
       if (numPart1 != numPart2) {
         return numPart1 - numPart2;
       }
     }
-    
+
     return parts1.length - parts2.length;
   }
+}
+
+///
+/// [version1]
+/// First version string to compare
+///
+/// [version2]
+/// Second version string to compare
+///
+/// Returns a positive value if version1 is newer,
+/// 0 if they are the same, or a negative value if version1 is older
+int _compareVersions(String version1, String version2) {
+  final parts1 = version1.split('.');
+  final parts2 = version2.split('.');
+
+  final length = min(parts1.length, parts2.length);
+
+  for (int i = 0; i < length; i++) {
+    final numPart1 = int.tryParse(parts1[i].split('-')[0]) ?? 0;
+    final numPart2 = int.tryParse(parts2[i].split('-')[0]) ?? 0;
+
+    if (numPart1 != numPart2) {
+      return numPart1 - numPart2;
+    }
+  }
+
+  return parts1.length - parts2.length;
 }
