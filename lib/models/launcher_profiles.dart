@@ -23,7 +23,7 @@ class LauncherProfiles {
 
 @JsonSerializable()
 class Profile {
-  final String id = const Uuid().v4();
+  final String id;
   final String created;
   final String? gameDir;
   final String icon;
@@ -37,6 +37,7 @@ class Profile {
   int index;
 
   Profile({
+    String id = '',
     required this.created,
     this.gameDir,
     required this.icon,
@@ -48,10 +49,11 @@ class Profile {
     required this.type,
     this.javaArgs,
     this.index = 0,
-  });
+  }) : id = id.isNotEmpty ? id : const Uuid().v4();
 
   /// Creates a copy of this Profile with the given fields replaced with new values
   Profile copyWith({
+    String? id,
     String? created,
     String? gameDir,
     String? icon,
@@ -65,6 +67,7 @@ class Profile {
     int? index,
   }) {
     return Profile(
+      id: id ?? this.id,
       created: created ?? this.created,
       gameDir: gameDir ?? this.gameDir,
       icon: icon ?? this.icon,
